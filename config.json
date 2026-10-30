@@ -1,0 +1,122 @@
+{
+  "prefix": "/",
+  "language": "en",
+  "timeZone": "Asia/Dhaka",
+  "database": {
+    "type": "json",
+    "notes": "Instabot-Pro ships the JSON backend only.",
+    "autoSyncWhenStart": false
+  },
+  "adminBot": [
+    "35009311397",
+    "68311189434",
+    "59605953590",
+    "69321172417",
+    "80054943614"
+  ],
+  "premiumUsers": [
+    "35009311397",
+    "68311189434",
+    "59605953590"
+  ],
+  "devUsers": [
+    "35009311397",
+    "68311189434",
+    "59605953590"
+  ],
+  "adminOnly": {
+    "enable": false,
+    "ignoreCommand": []
+  },
+  "hideNotiMessage": {
+    "commandNotFound": false,
+    "adminOnly": false,
+    "needRoleToUseCmd": false,
+    "userBanned": false,
+    "threadBanned": false,
+    "needRoleToUseCmdOnReply": false,
+    "needRoleToUseCmdOnReaction": false
+  },
+  "whiteListMode": {
+    "enable": false,
+    "whiteListIds": [],
+    "notes": "If enabled, only IDs in whiteListIds can use the bot."
+  },
+  "whiteListModeThread": {
+    "enable": false,
+    "whiteListThreadIds": [],
+    "notes": "If enabled, only threads in whiteListThreadIds can use the bot."
+  },
+  "noPrefix": {
+    "enable": true,
+    "notes": "true = only bot admins can use commands without prefix | false = everyone must use prefix"
+  },
+  "reactUnsend": {
+    "enable": true,
+    "onlyAdmin": true,
+    "emojis": [
+      "😡",
+      "🤬"
+    ],
+    "notes": "If enable = true, bot will unsend any message reacted with these emojis. If onlyAdmin = true, only adminBot IDs can trigger it."
+  },
+  "enableTypingIndicator": false,
+  "logEvents": {
+    "disableAll": false,
+    "message": true,
+    "message_reaction": true,
+    "message_unsend": true,
+    "message_reply": true,
+    "event": true,
+    "read_receipt": false,
+    "typ": false,
+    "presence": false
+  },
+  "credentials": {
+    "gmailAccount": {
+      "email": "",
+      "clientId": "disabled",
+      "clientSecret": "disabled",
+      "refreshToken": "disabled",
+      "apiKey": ""
+    },
+    "gRecaptcha": {
+      "siteKey": "",
+      "secretKey": ""
+    },
+    "notes": "'disabled' keeps the googleapis-backed utils loadable without OAuth credentials; fill these in to enable Google Drive features."
+  },
+  "instagramAccount": {
+    "sessionCookie": "",
+    "sessionParams": {},
+    "notes": "Paste the browser cookie JSON (or the sessionid) here; see README.md. account.txt takes precedence when present. sessionParams (optional) is the JSON object of web params (__dyn/__csr/__hs/...) used to skip the in-container browser harvest; INSTAGRAM_SESSION_PARAMS overrides it."
+  },
+  "pollInterval": 2000,
+  "notesPollInterval": "How often (ms) the bot polls the Instagram DM inbox for new messages. Instagram has no push/webhook for DMs, so every reply waits up to this long before the bot sees your message. 2000 = replies feel snappy (~2-3s). Instagram rate-limits login/inbox polling at roughly one request per 2s, so do not go below 2000; if Instagram starts returning 429, raise this back to 10000 or higher.",
+  "proxy": "",
+  "notesProxy": "Route all Instagram HTTP traffic through a proxy, e.g. \"http://user:pass@host:port\" or {\"https\":\"http://...\",\"http\":\"http://...\"}. Strongly recommended on a VPS: a data-centre IP is the main reason Instagram logs the session out or suspends it. Use a residential or mobile proxy.",
+  "botName": "Instabot-Pro",
+  "nickNameBot": "Instabot-Pro",
+  "typingDuration": 2000,
+  "notesTypingIndicator": "true = show 'is typing...' before every reply (more human-like, adds visible delay) | false = reply instantly, no typing shown",
+  "onlyAdminBox": false,
+  "antiInbox": false,
+  "notesLanguage": "change language using ISO 639-1 code",
+  "autoRestart": {
+    "enable": true,
+    "time": "1440"
+  },
+  "port": 3000,
+  "optionsFca": {
+    "forceLogin": true,
+    "listenEvents": true,
+    "updatePresence": true,
+    "listenTyping": true,
+    "logLevel": "error",
+    "selfListen": false,
+    "selfListenEvent": true,
+    "autoMarkDelivery": false,
+    "autoReconnect": true,
+    "notes": "GoatBot-Pro style FCA options; the Instagram adapter forwards the fields it supports and no-ops the rest."
+  }
+}

@@ -1,0 +1,96 @@
+# Core bot strings. Format: head.key=value  (%1, %2 ... are args)
+# Set the active language in config.json ("language": "en").
+
+# bot/login/login.js
+login.staleSessionParams=Supplied session params are stale; retrying login without them
+login.noCookie=No Instagram cookie found in account.txt or config.json
+login.loginSuccess=Logged in to Instagram as %1
+login.sessionInvalid=Instagram rejected the session (account suspended or cookie expired). Update account.txt with a fresh cookie and restart.
+login.sessionRateLimited=Instagram is rate-limiting this account (HTTP 429). Your cookie is still valid - wait a few minutes, then restart.
+login.sessionChallenge=Instagram requires a security check (challenge/checkpoint). Open the Instagram app, complete the verification, then restart the bot.
+login.sessionExpired=The Instagram session cookie is expired or logged out. Paste a fresh cookie in account.txt and restart.
+login.sessionSuspended=This Instagram account appears to be suspended or disabled. Log in on instagram.com to review the account status.
+login.proxyEnabled=Routing Instagram traffic through proxy %1
+login.transientRetry=Instagram did not answer cleanly (%1) - the cookie may still be valid. Retrying login in %2s (attempt %3 of %4).
+
+# InstaBot.js
+InstaBot.starting=Starting Instabot-Pro...
+InstaBot.skipped=Skipped %1: missing config.name
+InstaBot.loadingFolder=Loading %1 (%2 files)...
+InstaBot.loadedFolder=Loaded %1: %2/%3
+InstaBot.failedCommand=Failed to load command %1: %2
+InstaBot.loadedEvent=Loaded event: %1
+InstaBot.failedEvent=Failed to load event %1: %2
+InstaBot.botIDLogged=Bot ID: %1
+InstaBot.listening=Instabot-Pro is now listening for messages
+InstaBot.fatal=Fatal error: %1
+
+# bot/login/loadData.js
+loadData.typeJson=Database backend: JSON
+loadData.refreshingThreadData=Updating the information of the groups...
+loadData.refreshThreadDataSuccess=Updated information of %1 group!
+loadData.refreshThreadDataError=Something went wrong when updating the groups information!
+
+# bot/handler/handlerEvents.js
+handlerEvents.prefixOnly=𝗛𝗲𝘆! I'm alive\n━━━━━━━━━━━━━━━━━\n› %1help to see all commands
+handlerEvents.userBanned=⦸ Banned User\n━━━━━━━━━━━━━━━━━\n› Reason : %1\n› Time   : %2\n› User   : %3
+handlerEvents.threadBanned=⦸ Banned Chat\n━━━━━━━━━━━━━━━━━\n› Reason : %1\n› Time   : %2\n› Chat   : %3
+handlerEvents.onlyAdminBox=⛉ Admin Only\n━━━━━━━━━━━━━━━━━\n› Only chat admins can use this bot.
+handlerEvents.onlyAdminBot=ⴵ Restricted\n━━━━━━━━━━━━━━━━━\n› Only bot admins can use this.
+handlerEvents.onlyAdmin=⛉ Admin Only\n━━━━━━━━━━━━━━━━━\n› Only chat admins can use "%1".
+handlerEvents.onlyAdminBot2=ⴵ Restricted\n━━━━━━━━━━━━━━━━━\n› "%1" is for bot admins only.
+handlerEvents.onlyAdminToUseOnReply=⛉ Admin Only\n━━━━━━━━━━━━━━━━━\n› Only admins can reply to "%1".
+handlerEvents.onlyAdminBot2ToUseOnReply=ⴵ Restricted\n━━━━━━━━━━━━━━━━━\n› Reply on "%1" is for bot admins only.
+handlerEvents.onlyAdminToUseOnReaction=⛉ Admin Only\n━━━━━━━━━━━━━━━━━\n› Only admins can react on "%1".
+handlerEvents.onlyAdminBot2ToUseOnReaction=ⴵ Restricted\n━━━━━━━━━━━━━━━━━\n› Reaction on "%1" is for bot admins only.
+handlerEvents.waitingForCommand=ⴵ Cooldown\n━━━━━━━━━━━━━━━━━\n› Please wait %1s before using this again.
+handlerEvents.commandSyntaxError=𝗫 Incorrect Syntax\n━━━━━━━━━━━━━━━━━\n› Use %1help %2 to see correct usage.
+handlerEvents.commandNotFoundSuggestion=𝗫 Command Not Found\n━━━━━━━━━━━━━━━━━\n✦ Did you mean?\n%1
+handlerEvents.errorOccurred=𝗫 Error [ %1 ]\n━━━━━━━━━━━━━━━━━\n› Cmd : "%2"\n━━━━━━━━━━━━━━━━━\n%3
+handlerEvents.errorOccurred2=𝗫 Error [ %1 ]\n━━━━━━━━━━━━━━━━━\n› onChat : "%2"\n━━━━━━━━━━━━━━━━━\n%3
+handlerEvents.errorOccurred3=𝗫 Error [ %1 ]\n━━━━━━━━━━━━━━━━━\n› onReply : "%2"\n━━━━━━━━━━━━━━━━━\n%3
+handlerEvents.errorOccurred4=𝗫 Error [ %1 ]\n━━━━━━━━━━━━━━━━━\n› onReaction : "%2"\n━━━━━━━━━━━━━━━━━\n%3
+handlerEvents.errorOccurred5=𝗫 Error [ %1 ]\n━━━━━━━━━━━━━━━━━\n› onEvent : "%2"\n━━━━━━━━━━━━━━━━━\n%3
+handlerEvents.errorOccurred6=𝗫 Error [ %1 ]\n━━━━━━━━━━━━━━━━━\n› onEvent : "%2"\n━━━━━━━━━━━━━━━━━\n%3
+handlerEvents.errorOccurred7=𝗫 Error [ %1 ]\n━━━━━━━━━━━━━━━━━\n› onAnyEvent : "%2"\n━━━━━━━━━━━━━━━━━\n%3
+handlerEvents.cannotFindCommandName=𝗫 Failed to Execute\n━━━━━━━━━━━━━━━━━\n› Can't find command name for this reply.
+handlerEvents.cannotFindCommand=𝗫 Failed to Execute\n━━━━━━━━━━━━━━━━━\n› Can't find command "%1" for this reply.
+handlerEvents.listenError=Listen error: %1
+handlerEvents.rateLimited=Instagram is rate-limiting the inbox poll (HTTP 429). Backing off for %2s before retrying (poll every %1ms) - the session is still valid, no need to change the cookie.
+handlerEvents.recvResumed=Inbox polling resumed - Instagram's throttle has lifted.
+handlerEvents.pollIntervalRaised=Configured pollInterval %1ms is too aggressive (Instagram rate-limits) - raised to %2ms.
+handlerEvents.sessionInvalid=Instagram session is no longer valid (account suspended or cookie expired). Stopped polling - update account.txt with a fresh cookie.
+handlerEvents.sessionRateLimited=Instagram is rate-limiting this account (HTTP 429). Stopped polling - wait a few minutes, your cookie is still valid, then restart.
+handlerEvents.sessionChallenge=Instagram requires a security check (challenge/checkpoint). Stopped polling - complete the verification in the Instagram app, then restart.
+handlerEvents.sessionExpired=Instagram session cookie expired or logged out. Stopped polling - paste a fresh cookie in account.txt and restart.
+handlerEvents.sessionSuspended=This Instagram account appears to be suspended or disabled. Stopped polling - review the account on instagram.com.
+handlerEvents.normalizeError=Normalize error: %1
+handlerEvents.eventError=Event %1: %2
+
+# bot/handler/handlerCommand.js
+handlerCommand.commandNotFound=❌ Unknown command: "%1"\n\n💡 Did you mean: %2?\n\nType %3help to see all available commands.
+handlerCommand.commandNotFoundNoSuggest=❌ Unknown command: "%1"\n\nType %2help to see all available commands.
+handlerCommand.adminOnly=🔒 The bot is currently in admin-only mode.
+handlerCommand.accessDenied=❌ Access Denied!\n\nThis command requires: %1
+handlerCommand.cooldown=⏱ Please wait %1s before using this command again.
+handlerCommand.error=❌ Error executing command: %1
+
+# scripts/cmds/help.js
+help.title=📜 %1 — Command List
+help.footer=Type %1help <command> for details.
+help.commandNotFound=❌ Command "%1" not found.
+help.noGuide=No guide
+help.commandInfo=📝 %1\n📂 %2\n👤 Category: %3\n🔑 Author: %4\n🔁 Role: %5
+
+# scripts/cmds/ping.js
+ping.fallback=🏓 Pong! %1ms\n⏱️ Uptime: %2\n⚠️ (image render/send failed: %3)
+
+# scripts/cmds/setlang.js
+setlang.setForAll=Set default language of the bot to: %1
+setlang.setForCurrent=Set default language for this chat: %1
+setlang.noPermission=Only bot admin can use this command
+setlang.langNotFound=Can't find language: %1
+setlang.currentLang=🌐 Current language: %1\n📚 Available: %2
+
+# utils.js
+utils.errorOccurred=❌ An error occurred:\n\n%1

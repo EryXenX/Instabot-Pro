@@ -1,0 +1,60 @@
+{
+  "name": "instabot-pro",
+  "version": "1.0.5",
+  "description": "Instagram bot core with a GoatBot-Pro style command/event architecture",
+  "author": {
+    "name": "EryXenX",
+    "url": "https://github.com/EryXenX"
+  },
+  "main": "InstaBot.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "node tools/test/listenKeepAlive.test.js && node tools/test/reactionWatcher.test.js"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@eryxenx/insta-chat": "^2.1.1",
+    "@napi-rs/canvas": "^0.1.80",
+    "axios": "^1.13.1",
+    "axios-cookiejar-support": "^5.0.5",
+    "canvas": "^3.2.3",
+    "chalk": "^4.1.2",
+    "cheerio": "^1.0.0",
+    "express": "^4.21.2",
+    "form-data": "^4.0.6",
+    "fs-extra": "^11.3.2",
+    "googleapis": "^184.0.0",
+    "lodash": "^4.18.1",
+    "moment-timezone": "^0.6.5",
+    "node-cron": "^4.6.0",
+    "nodemailer": "^10.0.16",
+    "ora": "^9.4.1",
+    "qrcode": "^1.5.4",
+    "request": "^2.88.2",
+    "searchitunes": "^2.6.0",
+    "tough-cookie": "^5.1.2",
+    "yt-search": "^2.13.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/EryXenX/Instabot-Pro.git"
+  },
+  "keywords": [
+    "instagram",
+    "bot",
+    "instagram-bot",
+    "dm",
+    "chat-bot",
+    "instabot-pro",
+    "insta-bot",
+    "insta-chat",
+    "instabot-pro-ig"
+  ],
+  "bugs": {
+    "url": "https://github.com/EryXenX/Instabot-Pro/issues"
+  },
+  "homepage": "https://github.com/EryXenX/Instabot-Pro#readme"
+}
