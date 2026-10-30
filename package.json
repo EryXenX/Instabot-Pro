@@ -9,7 +9,7 @@
   "main": "InstaBot.js",
   "scripts": {
     "start": "node index.js",
-    "test": "node tools/test/listenKeepAlive.test.js && node tools/test/reactionWatcher.test.js"
+    "test": "node tools/test/listenKeepAlive.test.js && node tools/test/reactionWatcher.test.js && node tools/test/backlogGuard.test.js"
   },
   "license": "MIT",
   "engines": {

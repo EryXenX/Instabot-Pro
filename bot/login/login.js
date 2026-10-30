@@ -102,11 +102,9 @@ async function loginBot() {
   } catch (error) {
     if (error.code !== "IG_SESSION_INVALID" || !sessionParams) throw error;
     logger.warn("SESSION", getText("login", "staleSessionParams"));
-    discardSessionCache();
-    // Only a disk-harvested file is worth re-reading; env/config params are
-    // static, so re-fetching them just repeats the same failed login.
-    sessionParams = readSessionParamsFromEnvOrConfig() || (await getSessionParams(parsed));
-    result = await connect(cookieData, sessionParams);
+    // Supplied params are static (env/config), so retrying just repeats the same
+    // failed login. Retry once without them: the web API accepts the cookie alone.
+    result = await connect(cookieData, {});
   }
 
   const { native, info } = result;

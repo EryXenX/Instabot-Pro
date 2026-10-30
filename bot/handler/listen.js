@@ -40,6 +40,15 @@ function isRateLimited(err) {
 function startListening(api) {
   const normalizer = new EventNormalizer(api);
   const runHandler = handlerAction(api);
+
+  // Instagram replays a thread's recent history the first time the bot sees it
+  // (e.g. right after it is added to a group), and the realtime stream replays
+  // its sync window on subscribe. Those messages predate the bot, so answering
+  // them reads as "the bot replied to commands sent before it existed". Drop
+  // anything older than startup, with a little slack for clock skew.
+  const startedAt = Date.now();
+  const STARTUP_SKEW_MS = 90 * 1000;
+
   const configured = global.InstaBot.config.pollInterval ?? 20000;
   const interval = Math.max(configured, MIN_POLL_INTERVAL_MS);
   if (interval !== configured) {
@@ -97,6 +106,14 @@ function startListening(api) {
 
     // Never react to the bot's own outbound messages.
     if (event.senderID && String(event.senderID) === String(global.InstaBot.userID)) return;
+
+    // Skip the history Instagram replays for a thread the bot has just joined:
+    // those messages were sent before this run started, so the bot must not
+    // answer them. System events (member added, etc.) have no user timestamp and
+    // are synthesized live, so they pass.
+    if (event.type !== "event" && typeof event.timestamp === "number" && event.timestamp < startedAt - STARTUP_SKEW_MS) {
+      return;
+    }
 
     try {
       await runHandler(event);
