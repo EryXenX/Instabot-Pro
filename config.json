@@ -91,8 +91,8 @@
     "sessionParams": {},
     "notes": "Paste the browser cookie JSON (or the sessionid) here; see README.md. account.txt takes precedence when present. sessionParams (optional) is the JSON object of web params (__dyn/__csr/__hs/...) used to skip the in-container browser harvest; INSTAGRAM_SESSION_PARAMS overrides it."
   },
-  "pollInterval": 2000,
-  "notesPollInterval": "How often (ms) the bot polls the Instagram DM inbox for new messages. Instagram has no push/webhook for DMs, so every reply waits up to this long before the bot sees your message. 2000 = replies feel snappy (~2-3s). Instagram rate-limits login/inbox polling at roughly one request per 2s, so do not go below 2000; if Instagram starts returning 429, raise this back to 10000 or higher.",
+  "pollInterval": 15000,
+  "notesPollInterval": "How often (ms) the bot polls the Instagram DM inbox. Instagram has no push/webhook for DMs, so a reply waits up to this long. 15000 is the library's documented safe floor for a personal account: going lower trips Instagram's 429 throttle, especially from a datacenter IP (Render/Fly), after which the bot can neither read nor reply. Raise it if 429 still appears; lower it only on a residential/mobile IP.",
   "proxy": "",
   "notesProxy": "Route all Instagram HTTP traffic through a proxy, e.g. \"http://user:pass@host:port\" or {\"https\":\"http://...\",\"http\":\"http://...\"}. Strongly recommended on a VPS: a data-centre IP is the main reason Instagram logs the session out or suspends it. Use a residential or mobile proxy.",
   "botName": "Instabot-Pro",

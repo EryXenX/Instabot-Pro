@@ -40,6 +40,7 @@ const REFRESH_THREADS_MS = 60000;
 const RT_DEBOUNCE_MS = 150; // coalesce a burst of patches on one thread
 const RT_REPLAY_GUARD_MS = 3000; // ignore subscription-replay patches on connect
 const RT_RECONNECT_MS = 5000;
+const RT_RECONNECT_MAX_MS = 2 * 60 * 1000;
 const RT_PATH_RE = /\/items\/[^/]+\/reactions\/likes\/([^/]+)$/;
 // A bare new-item patch, e.g. "/direct_v2/threads/<tid>/items/<iid>".
 const RT_ITEM_RE = /^\/direct_v2\/threads\/[^/]+\/items\/[^/]+\/?$/;
@@ -68,12 +69,14 @@ function startReactionWatcher(api, options = {}) {
   let rtStopped = false;
   let rtReconnecting = false;
   let rtTimer = null;
+  let rtReconnectDelay = RT_RECONNECT_MS;
   const rtDebounce = new Map(); // threadID -> timer
   // Instagram uses two ids per thread: the inbox/FCA id (`id` == `thread_fbid`)
   // and the internal `thread_id` that the realtime path carries. The detail
   // query only accepts the former, so map the latter onto it.
   const threadIdMap = new Map(); // internal thread_id -> inbox thread id
   let lastThreadMapAt = 0;
+  let lastThreadMapAttemptAt = 0;
 
   const config = () => (global.InstaBot.config && global.InstaBot.config.reactUnsend) || {};
 
@@ -94,6 +97,10 @@ function startReactionWatcher(api, options = {}) {
       lastThreadsAt = Date.now();
     }
     if (threadIdMap.size && Date.now() - lastThreadMapAt <= REFRESH_THREADS_MS) return;
+    // A failed read must not be retried on every tick: each one is an inbox
+    // request, so a throttle would be fed by the watcher's own retries.
+    if (Date.now() - lastThreadMapAttemptAt <= REFRESH_THREADS_MS) return;
+    lastThreadMapAttemptAt = Date.now();
     try {
       const box = await api.getInbox();
       const threads = (box && box.threads) || [];
@@ -290,11 +297,15 @@ function startReactionWatcher(api, options = {}) {
       }
       await api.realtimeSubscribe();
       rtSubscribedAt = Date.now();
+      rtReconnectDelay = RT_RECONNECT_MS;
       // Warm the internal->inbox thread id map now, so the first reaction is not
       // delayed by a cold inbox read on the critical path.
       refreshThreads().catch(() => {});
       logger.info("REACTION", "realtime reaction push connected");
     } catch (error) {
+      // The subscribe path reads the inbox, so a failed attempt can itself be a
+      // 429. Retrying every 5s just piles requests on the throttle (and on a
+      // datacenter IP it never wins), so back off exponentially to a ceiling.
       logger.warn("REACTION", `realtime unavailable, polling only: ${error.message || error}`);
       scheduleRealtimeReconnect();
     }
@@ -304,13 +315,15 @@ function startReactionWatcher(api, options = {}) {
     if (rtStopped || rtReconnecting) return;
     rtReconnecting = true;
     if (rtTimer) clearTimeout(rtTimer);
+    const wait = rtReconnectDelay;
+    rtReconnectDelay = Math.min(rtReconnectDelay * 2, RT_RECONNECT_MAX_MS);
     rtTimer = setTimeout(async () => {
       rtReconnecting = false;
       if (rtStopped || stopped) return;
       try { if (rtClient) rtClient.disconnect(); } catch (_) {}
       rtClient = null;
       await connectRealtime();
-    }, RT_RECONNECT_MS);
+    }, wait);
     if (rtTimer.unref) rtTimer.unref();
   }
 
