@@ -67,9 +67,15 @@ async function connect(cookieData, sessionParams) {
       sessionParams,
       deviceFile: DEVICE_FILE,
       appStateFile: APPSTATE_FILE,
+      // MQTT push for inbound messages: Instagram has no DM webhook, so without
+      // this a reply waits a full poll cycle. With it the listener is push and
+      // the poll below is only the fallback for when the broker is unreachable
+      // (some datacenter hosts drop it). Set config.realtime to false to force
+      // polling only.
+      realtime: { enabled: global.InstaBot.config.realtime !== false, fallback: true },
       // Keep the package's own poll floor in step with the bot's requested
       // interval, otherwise listen() silently raises a short cycle back up.
-      minPollIntervalMs: global.InstaBot.config.pollInterval ?? 15000
+      minPollIntervalMs: global.InstaBot.config.pollInterval ?? 2000
     });
     try {
       const info = await native.init();

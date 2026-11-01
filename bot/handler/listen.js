@@ -17,6 +17,10 @@ const { logger, getText } = require("../utils");
 const MIN_POLL_INTERVAL_MS = 2000;
 const BACKOFF_START_MS = 30000;
 const BACKOFF_MAX_MS = 10 * 60 * 1000;
+// Realtime re-arm: faster than the poll backoff, because MQTT drops are usually
+// momentary and polling-only in between is what makes a reply feel slow.
+const REARM_START_MS = 3000;
+const REARM_MAX_MS = 60 * 1000;
 
 // Instagram answers a dead/suspended session by redirecting the inbox poll to
 // the login page, which surfaces as an axios "Maximum number of redirects
@@ -93,6 +97,36 @@ function startListening(api) {
     setTimeout(armListener, wait);
   };
 
+  // Realtime is opt-in (api.listen switches to MQTT push when it is configured).
+  // The package only re-arms a failure that happened *before* the subscription
+  // was confirmed; a drop after that leaves the listener dead, and the bot goes
+  // silent because the callback never fires again. Re-arm here instead, with a
+  // short backoff so a flapping broker (common on a datacenter host) still
+  // recovers; the package falls back to polling whenever MQTT cannot come up.
+  const realtimeConfigured = () => {
+    const rt = api.api && api.api.inbox && api.api.inbox.realtimeOptions;
+    return !!(rt && rt.enabled);
+  };
+  const realtimeAlive = () => {
+    const l = api.api && api.api.inbox && api.api.inbox._realtimeListener;
+    return !!(l && l.connected);
+  };
+
+  let rearmBackoff = REARM_START_MS;
+  const onListenerError = (err) => {
+    if (stopped) return;
+    const message = err && (err.message || err);
+    logger.error("LISTEN", getText("handlerEvents", "listenError", message));
+    // Only the realtime path needs this: in polling mode the package keeps its
+    // own poll timer alive across transient errors.
+    if (!realtimeConfigured() || realtimeAlive()) return;
+    if (typeof stopCurrent === "function") stopCurrent();
+    stopCurrent = null;
+    const wait = rearmBackoff;
+    rearmBackoff = Math.min(rearmBackoff * 2, REARM_MAX_MS);
+    setTimeout(armListener, wait);
+  };
+
   const onEvent = async (raw) => {
     if (!raw) return;
     let event;
@@ -140,7 +174,7 @@ function startListening(api) {
       shutdown(1);
       return;
     }
-    logger.error("LISTEN", getText("handlerEvents", "listenError", err.message || err));
+    onListenerError(err);
   };
 
   const armListener = () => {
@@ -156,6 +190,7 @@ function startListening(api) {
             rateLimitStreak = 0;
           }
         }
+        rearmBackoff = REARM_START_MS;
         void onEvent(raw);
       },
       interval
