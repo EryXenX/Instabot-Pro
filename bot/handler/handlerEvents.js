@@ -144,7 +144,12 @@ module.exports = function (api) {
       }
     }
 
-    const prefix = config.prefix || "/";
+    // GoatBot-Pro resolves the prefix per thread: `prefix <x>` stores
+    // data.prefix on the thread row (scripts/cmds/prefix.js) and every dispatch
+    // in that thread must honour it. Reading config.prefix alone silently
+    // ignored the per-thread override, so the command that changed the prefix
+    // worked once and the new prefix then never matched.
+    const prefix = threadData?.data?.prefix || config.prefix || "/";
     const role = getRole(senderID);
     const parameters = {
       api,
