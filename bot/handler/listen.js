@@ -314,11 +314,18 @@ function startListening(api) {
   const armSafetyPoll = () => {
     if (stopped || !realtimeConfigured()) return;
     const inbox = api.api && api.api.inbox;
-    if (!inbox || typeof inbox.startSafetyPoll !== "function") {
+    // startSafetyPoll is the dedicated entry point (its own cursor + 429
+    // backoff) on the package that ships it. On an older published package fall
+    // back to the plain poller so the push is never a single point of failure;
+    // it runs at that package's floor, which is slower but still a safety net.
+    const start = inbox && (typeof inbox.startSafetyPoll === "function"
+      ? inbox.startSafetyPoll.bind(inbox)
+      : typeof inbox._startPolling === "function" ? inbox._startPolling.bind(inbox) : null);
+    if (!start) {
       logger.warn("LISTEN", "safety poll unavailable on this package version; push-only");
       return;
     }
-    stopSafety = inbox.startSafetyPoll((err, raw) => {
+    stopSafety = start((err, raw) => {
       if (err) {
         if (isRateLimited(err)) {
           safetyRateLimited += 1;
