@@ -93,9 +93,9 @@
     "notes": "Paste the browser cookie JSON (or the sessionid) here; see README.md. account.txt takes precedence when present. sessionParams (optional) is the JSON object of web params (__dyn/__csr/__hs/...) used to skip the in-container browser harvest; INSTAGRAM_SESSION_PARAMS overrides it."
   },
   "pollInterval": 15000,
-  "notesPollInterval": "How often (ms) the bot polls the Instagram DM inbox. Instagram has no reliable DM push, so a reply waits up to this long. 15000 is the library's documented safe floor; polling faster (the old 2000) trips Instagram's 429 throttle, which is exactly what a datacenter IP like Render's does. Raise it further if 429s persist; a residential proxy lets you lower it.",
-  "realtime": false,
-  "notesRealtime": "false (default) = poll the inbox, the guaranteed delivery path. true = also subscribe to Instagram's MQTT message-sync push so a DM arrives in ~1s. Only enable it if you have confirmed inbound DMs actually arrive on the push from your host (some datacenter IPs connect+subscribe but receive nothing, which leaves the bot deaf); the package falls back to polling automatically if the broker cannot be reached.",
+  "notesPollInterval": "How often (ms) the bot polls the Instagram DM inbox when realtime is off. Instagram has no reliable DM push, so a reply waits up to this long. 15000 is the library's documented safe floor; polling faster (the old 2000) trips Instagram's 429 throttle. With realtime true this poll becomes the safety net only, and realtimeSafetyPollMs governs it.",
+  "realtime": true,
+  "notesRealtime": "true (default) = subscribe to Instagram's MQTT message-sync push so a DM arrives in ~1s. The push rides the session's single shared MQTT client, so the listener and the reaction watcher no longer steal the stream from each other. A safety poll (realtimeSafetyPollMs) runs underneath as a fallback, so a push that connects and then goes quiet does not leave the bot deaf. Set false to poll only.",
   "sendPacing": {
     "globalMinGapMs": 500,
     "perThreadMinGapMs": 700,
@@ -127,5 +127,9 @@
     "autoMarkDelivery": false,
     "autoReconnect": true,
     "notes": "GoatBot-Pro style FCA options; the Instagram adapter forwards the fields it supports and no-ops the rest."
-  }
+  },
+  "realtimeSafetyPollMs": 8000,
+  "notesRealtimeSafetyPollMs": "With realtime true, the inbox poll runs only as a safety net at this interval (floor 4000). It has its own 429 backoff and never blocks the push path. 8000 keeps a warm fallback without tripping Instagram's read throttle.",
+  "latencyLog": true,
+  "notesLatencyLog": "true = log a LATENCY line per reply with detect/normalize/handler/send/total ms, so reply slowness can be measured instead of guessed."
 }
