@@ -58,8 +58,8 @@
       "😡",
       "🤬"
     ],
-    "skipPollUnderRealtime": false,
-    "notes": "If enable = true, bot will unsend any message reacted with these emojis. If onlyAdmin = true, only adminBot IDs can trigger it. skipPollUnderRealtime: when true the reaction watcher stops its round-robin thread-detail poll while the realtime MQTT push is connected (it is redundant then, and the poll is a big part of the 429 throttle). Leave false unless the push path is verified to deliver reactions on your host - Instagram delivers nothing on that stream from some datacenter IPs."
+    "skipPollUnderRealtime": true,
+    "notes": "If enable = true, bot will unsend any message reacted with these emojis. If onlyAdmin = true, only adminBot IDs can trigger it. skipPollUnderRealtime: when true the reaction watcher stops its 5s round-robin thread-detail poll while its realtime MQTT push is connected. The push carries a reaction as a `/items/<iid>/reactions/likes/<reactor>` patch (verified live), so the poll is redundant then - and it was a big part of the inbox 429 throttle. The watcher resumes polling automatically whenever the push is down."
   },
   "enableTypingIndicator": false,
   "logEvents": {
@@ -94,6 +94,8 @@
   },
   "pollInterval": 15000,
   "notesPollInterval": "How often (ms) the bot polls the Instagram DM inbox. Instagram has no reliable DM push, so a reply waits up to this long. 15000 is the library's documented safe floor; polling faster (the old 2000) trips Instagram's 429 throttle, which is exactly what a datacenter IP like Render's does. Raise it further if 429s persist; a residential proxy lets you lower it.",
+  "realtime": false,
+  "notesRealtime": "false (default) = poll the inbox, the guaranteed delivery path. true = also subscribe to Instagram's MQTT message-sync push so a DM arrives in ~1s. Only enable it if you have confirmed inbound DMs actually arrive on the push from your host (some datacenter IPs connect+subscribe but receive nothing, which leaves the bot deaf); the package falls back to polling automatically if the broker cannot be reached.",
   "proxy": "",
   "notesProxy": "Route all Instagram HTTP traffic through a proxy, e.g. \"http://user:pass@host:port\" or {\"https\":\"http://...\",\"http\":\"http://...\"}. Strongly recommended on a VPS: a data-centre IP is the main reason Instagram logs the session out or suspends it. Use a residential or mobile proxy.",
   "botName": "Instabot-Pro",

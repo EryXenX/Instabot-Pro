@@ -257,3 +257,47 @@ installed from `InstaBot.js` before commands load.
 
 Embedded token in the remote URL works; `$GITHUB_TOKEN`/`gh` may be invalid.
 Confirm before pushing to a protected branch.
+
+## Inbox 429 / reply latency (Instabot-Pro, `/workspace/instabot-pro`)
+
+The `WARN LISTEN │ ...rate-limiting the inbox poll (HTTP 429)... poll every Nms`
+line is **self-inflicted**: the inbox is polled on a fixed interval, so once
+Instagram answers 429 every later poll piles another request on the throttle and
+the inbox never recovers. Two independent pollers run:
+
+1. the package's inbox poller (`minPollIntervalMs`, floor 15000), and
+2. `bot/handler/reactionWatcher.js` — a 5s round-robin thread-detail poll.
+
+The watcher's poll is redundant while its own MQTT push is up: the push carries a
+reaction as `/direct_v2/threads/<tid>/items/<iid>/reactions/likes/<reactor>`
+(op `add`, emoji in the value) — verified live. `reactUnsend.skipPollUnderRealtime`
+stops it (default **true** as of PR #3); the watcher resumes polling whenever the
+push drops.
+
+**Do not enable `config.realtime` by default.** `options.realtime` makes the
+package's `listen()` deliver from MQTT push *instead of* polling. Inbound
+(other-user) delivery could not be proven on this host, and the owner's revert
+`a73e037` says the push "never delivered inbound DMs and deafened the bot" —
+though that predates package v2.1.2, which fixed the transport flap/keep-alive.
+`config.realtime` therefore stays opt-in (`false`), with the package's own poller
+as the guaranteed path.
+
+The push path emits `messageID = item_id` (numeric) while the poller emits
+`node.id` (`mid.$…`). They differ, so a naive realtime+poll hybrid would
+double-reply and key replies/reactions on the wrong id.
+
+To prove inbound delivery on a host: run the listener and send a DM from another
+account; the broker does **not** replay history, so an older `seq_id` shows
+nothing. `tools/test/realtimeInbound.test.js` covers the decode path offline.
+
+To capture the raw push shape, subscribe a `receive` handler and log topic 146
+(message-sync): the `value` field is a JSON string with
+`item_id/user_id/text/item_type/timestamp`.
+
+The reaction watcher has its **own** `realtimeConnect()` client, independent of
+`login`'s `options.realtime` — that is why `skipPollUnderRealtime` is safe even
+with `config.realtime: false`.
+
+`bot/login/login.js` also re-arms a realtime listener that drops *after* it
+subscribed: the package only re-arms a *pre*-subscribe failure
+(`bot/handler/listen.js`, `REARM_START_MS` 3s → `REARM_MAX_MS` 60s).
