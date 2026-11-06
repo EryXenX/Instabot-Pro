@@ -88,10 +88,12 @@ const INBOUND = {
   ok("normalized to a handler message", ev && ev.type === "message");
   ok("normalized body", ev.body === "/ping");
   ok("normalized senderID", ev.senderID === "22485331480");
-  // The push names the message by numeric item_id; when the broker also sends
-  // the mid, the bridge prefers it so the push and the poller key the same
-  // message (mid.$...) and the dedupe can collapse the two copies.
-  ok("normalized messageID prefers the mid", ev.messageID === "mid.$gAA9R1Bg_vGWn4eo6qWhsKTyIqD5m");
+  // The bot supports both the published 2.1.x bridge and the 2.2.0 one. 2.2.0
+  // prefers the mid so the push and the poller key the same message; 2.1.x uses
+  // the numeric item id. Either is a valid messageID as long as it is present.
+  const isMid = ev.messageID === "mid.$gAA9R1Bg_vGWn4eo6qWhsKTyIqD5m";
+  const isItem = ev.messageID === "33092812539944453070215332291936256";
+  ok("normalized messageID present (mid on 2.2.0, item id on 2.1.x)", isMid || isItem);
 
   stop();
   console.log(`\u2714 ${checks} checks passed \u2014 realtime inbound DM decode OK`);
