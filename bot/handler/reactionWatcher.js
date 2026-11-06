@@ -70,6 +70,7 @@ function startReactionWatcher(api, options = {}) {
   let rtReconnecting = false;
   let rtTimer = null;
   let rtReconnectDelay = RT_RECONNECT_MS;
+  let rtSubscribed = false;
   const rtDebounce = new Map(); // threadID -> timer
   // Instagram uses two ids per thread: the inbox/FCA id (`id` == `thread_fbid`)
   // and the internal `thread_id` that the realtime path carries. The detail
@@ -307,20 +308,30 @@ function startReactionWatcher(api, options = {}) {
 
   async function connectRealtime() {
     if (rtStopped || stopped) return;
-    if (typeof api.realtimeConnect !== "function") return; // no realtime on this client
-    if (rtConnected()) return; // already up; a second connect would duplicate it
+    // Only run the push path when realtime is actually enabled for the session.
+    // The watcher must not open its own MQTT connection: a second connection on
+    // the same device id makes Instagram route the Direct stream to the newest
+    // subscriber only, which left the listener deaf.
+    const opts = typeof global.InstaBot.realtimeOptions === "function" ? global.InstaBot.realtimeOptions() : null;
+    if (!opts || !opts.enabled) return;
+    if (rtConnected()) return; // already attached to the listener's connection
+    // The listener owns and subscribes the connection; the watcher only attaches
+    // its "direct" listener. While the listener is (re)connecting this is null,
+    // so retry rather than giving up.
+    const client = typeof global.InstaBot.realtimeClient === "function" ? global.InstaBot.realtimeClient() : null;
+    if (!client) {
+      scheduleRealtimeReconnect();
+      return;
+    }
     try {
-      const client = await api.realtimeConnect();
-      // realtimeConnect() hands back a fresh client after a drop, so handlers are
-      // attached per instance rather than once — otherwise a reconnected client
-      // has no "direct" listener and the reaction fast path goes silent.
+      // The client is replaced after a drop, so handlers are attached per
+      // instance rather than once — otherwise a reconnected client has no
+      // "direct" listener and the reaction fast path goes silent.
       if (client !== rtClient) {
         rtClient = client;
-        client.on("error", (error) => logger.warn("REACTION", `realtime: ${error.message || error}`));
         client.on("disconnected", () => { rtUp = false; if (!rtStopped && !stopped) scheduleRealtimeReconnect(); });
         client.on("direct", onRealtimeDirect);
       }
-      await api.realtimeSubscribe();
       rtUp = true;
       rtSubscribedAt = Date.now();
       rtReconnectDelay = RT_RECONNECT_MS;
@@ -347,8 +358,8 @@ function startReactionWatcher(api, options = {}) {
     rtTimer = setTimeout(async () => {
       rtReconnecting = false;
       if (rtStopped || stopped) return;
-      try { if (rtClient) rtClient.disconnect(); } catch (_) {}
-      rtClient = null;
+      // Never tear down the connection: the listener owns it and its push would
+      // go with it. connectRealtime() just re-attaches to whatever is live now.
       await connectRealtime();
     }, wait);
     if (rtTimer.unref) rtTimer.unref();
@@ -410,7 +421,8 @@ function startReactionWatcher(api, options = {}) {
     if (rtTimer) clearTimeout(rtTimer);
     for (const t of rtDebounce.values()) clearTimeout(t);
     rtDebounce.clear();
-    try { if (rtClient) rtClient.disconnect(); } catch (_) {}
+    // The connection belongs to the listener; the watcher only attached a
+    // "direct" listener to it, so it must never disconnect it.
   };
 }
 

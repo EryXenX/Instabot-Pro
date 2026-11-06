@@ -99,19 +99,21 @@ global.db = {
 const { EventEmitter } = require("events");
 const startReactionWatcher = require("../../bot/handler/reactionWatcher");
 
-// A fake realtime client so the fast path can be driven without a network: the
-// watcher calls api.realtimeConnect()/realtimeSubscribe() and listens for
-// "direct" patches. It also serves the inbox with the internal->inbox thread
-// id mapping the realtime path resolves through. The watcher only polls while
-// realtime is *unavailable*, so the switch lets the poll phases run against a
-// broker that refuses to connect.
+// A fake realtime client so the fast path can be driven without a network. The
+// listener owns the session's single MQTT connection and exposes it through
+// global.InstaBot.realtimeClient(); the watcher only attaches a "direct"
+// listener to it and must never dial its own connection (a second connection on
+// the same device id is what stole the Direct stream). It also serves the inbox
+// with the internal->inbox thread id mapping the realtime path resolves through.
 const rtClient = new EventEmitter();
 rtClient.disconnect = () => {};
-let rtAvailable = false;
-api.realtimeConnect = async () => {
-  if (!rtAvailable) throw new Error("no broker");
-  return rtClient;
-};
+rtClient.connected = true;
+let rtEnabled = false;
+let legacyConnectCalls = 0;
+global.InstaBot.realtimeOptions = () => ({ enabled: rtEnabled });
+global.InstaBot.realtimeClient = () => (rtEnabled ? rtClient : null);
+// A legacy package surface that must NOT be used any more.
+api.realtimeConnect = async () => { legacyConnectCalls += 1; return rtClient; };
 api.realtimeSubscribe = async () => ({ seqId: 1, snapshotAtMs: Date.now() });
 api.getInbox = async () => ({
   threads: [{ id: THREAD, thread_id: "340282366841710301281155975261028596837" }]
@@ -168,8 +170,9 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   stopOld();
   calls.length = 0;
   global.InstaBot.config.reactUnsend = { enable: false, onlyAdmin: true, emojis: [] };
-  // Bring the broker up: the watcher then uses push and skips the poll.
-  rtAvailable = true;
+  // Bring the broker up: the listener then exposes its connection and the
+  // watcher attaches to it and skips the poll.
+  rtEnabled = true;
   const stopRt = startReactionWatcher(api, { tickMs: 600000, replayGuardMs: 0, rtDebounceMs: 20 });
   await sleep(100);
 
@@ -219,6 +222,9 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   });
   await sleep(400);
   assert("reaction remove patch ignored", calls.length === 1 && global.InstaBot.onReaction.has(P5));
+  // The watcher attached to the listener's connection and never dialed its own:
+  // a second connection on the same device id is what stole the Direct stream.
+  assert("watcher attached to the listener's realtime connection", legacyConnectCalls === 0);
   stopRt();
 
   clearInterval(keepAlive);

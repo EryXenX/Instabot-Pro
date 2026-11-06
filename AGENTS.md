@@ -274,17 +274,35 @@ reaction as `/direct_v2/threads/<tid>/items/<iid>/reactions/likes/<reactor>`
 stops it (default **true** as of PR #3); the watcher resumes polling whenever the
 push drops.
 
-**Do not enable `config.realtime` by default.** `options.realtime` makes the
-package's `listen()` deliver from MQTT push *instead of* polling. Inbound
-(other-user) delivery could not be proven on this host, and the owner's revert
-`a73e037` says the push "never delivered inbound DMs and deafened the bot" —
-though that predates package v2.1.2, which fixed the transport flap/keep-alive.
-`config.realtime` therefore stays opt-in (`false`), with the package's own poller
-as the guaranteed path.
+**Realtime push is now the default, with a safety poll.** `config.realtime` is
+`true`. The bot owns the session's **single** MQTT connection
+(`bot/handler/listen.js`): it connects, subscribes, and exposes the client via
+`global.InstaBot.realtimeClient()`. `bot/handler/reactionWatcher.js` only
+attaches a `direct` listener to that same connection — it must never dial its
+own. A second connection on the same device id makes Instagram route the Direct
+stream to the newest subscriber only, which is what made the bot deaf ("connects
+and subscribes, receives nothing"). The package enforces one shared connection
+too (`sharedRealtimeClient()`, v2.2.0).
 
-The push path emits `messageID = item_id` (numeric) while the poller emits
-`node.id` (`mid.$…`). They differ, so a naive realtime+poll hybrid would
-double-reply and key replies/reactions on the wrong id.
+Under the push, the inbox poll runs only as a safety net on its own timer
+(`config.realtimeSafetyPollMs`, floor 4000) via `InboxMethods.startSafetyPoll()`,
+with its own 429 backoff. With `config.realtime: false` the poller is the
+guaranteed path at the 15 s floor (`pollInterval`).
+
+**Push and poller ids are reconciled** (`bot/handler/inbound.js`, and the
+package's `reconcile`). The push names a message by numeric `item_id` (and the
+same `mid` when present); the poller names it by `mid`. `Deduper` drops the
+second copy by `mid` or by a `thread+sender+body+timestamp` fingerprint, so the
+hybrid never double-replies. The push also names a thread by its internal
+`thread_id`; `bot/handler/threadIds.js` (and `InstaClient.resolveThreadID()`)
+rewrite it to the inbox id the rest of the bot uses.
+
+`bot/login/login.js` passes `realtime: { enabled: config.realtime, fallback: true }`
+and `minPollIntervalMs`; `bot/handler/listen.js` re-arms a push that drops after
+subscribing (the package only re-arms a *pre*-subscribe failure).
+
+`config.latencyLog` (default true) prints one `LATENCY` line per reply with
+`detect/normalize/handler/send/total` ms, so slowness is measured, not guessed.
 
 To prove inbound delivery on a host: run the listener and send a DM from another
 account; the broker does **not** replay history, so an older `seq_id` shows

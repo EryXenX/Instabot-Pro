@@ -1,6 +1,6 @@
 {
   "name": "instabot-pro",
-  "version": "1.0.5",
+  "version": "1.1.0",
   "description": "Instagram bot core with a GoatBot-Pro style command/event architecture",
   "author": {
     "name": "EryXenX",
@@ -9,14 +9,14 @@
   "main": "InstaBot.js",
   "scripts": {
     "start": "node index.js",
-    "test": "node tools/test/listenKeepAlive.test.js && node tools/test/listenRealtimeRearm.test.js && node tools/test/reactionWatcher.test.js && node tools/test/realtimeInbound.test.js && node tools/test/handlerDispatch.test.js && node tools/test/backlogGuard.test.js && node tools/test/pacing.test.js"
+    "test": "node tools/test/listenKeepAlive.test.js && node tools/test/listenRealtimeRearm.test.js && node tools/test/reactionWatcher.test.js && node tools/test/realtimeInbound.test.js && node tools/test/handlerDispatch.test.js && node tools/test/backlogGuard.test.js && node tools/test/inboundDedupe.test.js && node tools/test/pacing.test.js"
   },
   "license": "MIT",
   "engines": {
     "node": ">=18"
   },
   "dependencies": {
-    "@eryxenx/insta-chat": "^2.1.2",
+    "@eryxenx/insta-chat": "^2.2.0",
     "@napi-rs/canvas": "^0.1.80",
     "axios": "^1.13.1",
     "axios-cookiejar-support": "^5.0.5",
