@@ -302,6 +302,36 @@ with `config.realtime: false`.
 subscribed: the package only re-arms a *pre*-subscribe failure
 (`bot/handler/listen.js`, `REARM_START_MS` 3s → `REARM_MAX_MS` 60s).
 
+## Reply latency: where the 5–6s actually goes
+
+The reply the user sees is `detect` (how late the listener learns of the DM) +
+`send` (the outbound call). Measured live on this host:
+
+- **send** — the package's `antiSuspension` pacer, not the network. An isolated
+  probe of `waitForTurn()` gave 788 ms / 2839 ms / 3652 ms back-to-back, and
+  lowering the gaps dropped it to 140 ms / 824 ms / 668 ms. `config.sendPacing`
+  now sets `globalMinGapMs`/`perThreadMinGapMs`/`jitterMs` (`bot/pacing.js`,
+  applied in `bot/login/login.js`; defaults were 1500/2500/1500).
+- **detect** — the inbox poll interval, so a reply waits on average half of
+  `pollInterval`. The package comment says it plainly: "IG has no DM push, so
+  reply latency is bounded by one poll cycle".
+
+**The MQTT push does deliver Direct items on this host.** A raw tap on topic 146
+(message-sync) captured our own send echoed back in ~105 ms
+(`op:add`, `/direct_v2/threads/<tid>/items/<iid>`, `value.item_id/user_id/text`),
+which is exactly the shape `src/realtime/bridge.js` decodes. So the push is not
+deaf — earlier "0 push events" runs simply had no DM sent during the window.
+
+Enabling `config.realtime` is **still risky**, because when the subscription
+succeeds the package does *not* poll at all (`src/methods/inbox.js` `listen()`:
+fallback only runs while `!listener._subscribed`) — there is no push+poll safety
+net. And the two sources key the same message differently: the push emits
+`messageID = item_id` (numeric), the poller emits `node.id` (`mid.$…`), so a
+naive hybrid double-replies. A safe realtime mode needs a message-id
+reconciliation (e.g. dedupe on `offline_threading_id`) before it can be the
+default. Until then the guaranteed path is the poller, and `pollInterval` is the
+detect-latency knob.
+
 ## A lost reply is a lost command (handler dispatch)
 
 `bot/handler/handlerAction.js` fires the async sub-handlers (`onStart`, `onChat`,
