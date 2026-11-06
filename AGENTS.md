@@ -192,6 +192,13 @@ fresh. Polling only runs while `reactUnsend.enable` is true **or** an
 `disconnected`; a client without `realtimeConnect` (as in the offline test)
 simply stays poll-only.
 
+The poll is **not** skipped just because realtime reports connected: the MQTT
+message-sync stream connects and subscribes but delivers nothing on some
+datacenter IPs (see `revert(listen): MQTT push never delivered inbound DMs`), and
+reactions ride that same stream. Set `reactUnsend.skipPollUnderRealtime: true`
+only after confirming push actually delivers on the host; then the poll stops
+while the client is up and falls back the moment it drops.
+
 Measured live: reaction → dispatch ~2.5s (was 12s+ polled).
 
 Note: the only reactor a test account can drive is itself, and the watcher

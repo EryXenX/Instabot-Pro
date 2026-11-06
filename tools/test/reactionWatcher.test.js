@@ -186,17 +186,27 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   assert("realtime push dispatched onReaction", calls.length === 1 && calls[0].reactor === ADMIN);
   assert("realtime dispatch used the resolved inbox threadID", calls[0] && calls[0].threadID === THREAD);
 
-  // While push is up the round-robin poll must not run — that per-thread detail
-  // read every few seconds is a big part of what trips the 429 throttle. Let
-  // several short ticks elapse and confirm no thread detail was fetched.
+  // The round-robin poll is only skipped on an explicit opt-in: the MQTT stream
+  // is known to deliver nothing on some datacenter IPs, so the default keeps the
+  // poll running even while push reports connected.
   let detailReads = 0;
   const origFetchDetail = api.api.thread.fetchDetail;
   api.api.thread.fetchDetail = async (...args) => { detailReads++; return origFetchDetail(...args); };
+
+  global.InstaBot.config.reactUnsend = { enable: true, onlyAdmin: true, emojis: [], skipPollUnderRealtime: false };
+  const stopDefault = startReactionWatcher(api, { tickMs: 60, replayGuardMs: 0 });
+  await sleep(300);
+  stopDefault();
+  assert("poll still runs under realtime by default", detailReads > 0);
+
+  detailReads = 0;
+  global.InstaBot.config.reactUnsend = { enable: true, onlyAdmin: true, emojis: [], skipPollUnderRealtime: true };
   const stopGated = startReactionWatcher(api, { tickMs: 60, replayGuardMs: 0 });
   await sleep(300);
   stopGated();
   api.api.thread.fetchDetail = origFetchDetail;
-  assert("poll skipped while realtime push is up", detailReads === 0);
+  global.InstaBot.config.reactUnsend = { enable: false, onlyAdmin: true, emojis: [] };
+  assert("poll skipped when skipPollUnderRealtime is on", detailReads === 0);
 
   // A "remove" patch (un-react) must not dispatch.
   const P5 = "mid.$p5";

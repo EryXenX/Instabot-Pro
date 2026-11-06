@@ -364,11 +364,13 @@ function startReactionWatcher(api, options = {}) {
       backoff = tickMs;
       return schedule(tickMs);
     }
-    // While realtime push is up it is the fast path and the poll is redundant —
-    // one thread-detail read every 5s is a big part of what trips the 429
-    // throttle, and the push path already covers both features. Keep the client
-    // honest instead, and fall back to the poll when it is down.
-    if (rtConnected()) {
+    // While realtime push is up the poll is redundant — *if* the push path
+    // actually delivers here. On some datacenter IPs the MQTT message-sync
+    // stream connects but never delivers (see "revert(listen): MQTT push never
+    // delivered inbound DMs"), so the poll stays on by default. Set
+    // reactUnsend.skipPollUnderRealtime to trust the push and stop paying for
+    // both paths.
+    if (rtConnected() && cfg.skipPollUnderRealtime === true) {
       backoff = tickMs;
       return schedule(tickMs);
     }

@@ -58,7 +58,8 @@
       "😡",
       "🤬"
     ],
-    "notes": "If enable = true, bot will unsend any message reacted with these emojis. If onlyAdmin = true, only adminBot IDs can trigger it."
+    "skipPollUnderRealtime": false,
+    "notes": "If enable = true, bot will unsend any message reacted with these emojis. If onlyAdmin = true, only adminBot IDs can trigger it. skipPollUnderRealtime: when true the reaction watcher stops its round-robin thread-detail poll while the realtime MQTT push is connected (it is redundant then, and the poll is a big part of the 429 throttle). Leave false unless the push path is verified to deliver reactions on your host - Instagram delivers nothing on that stream from some datacenter IPs."
   },
   "enableTypingIndicator": false,
   "logEvents": {
