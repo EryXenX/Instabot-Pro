@@ -10,11 +10,11 @@ const { logger, getText } = require("../utils");
 // throttle and the inbox never recovers. We instead run its listener in a short
 // burst and, when throttled, tear it down and re-arm with exponential backoff.
 //
-// The floor matches the package's documented safe minimum and the library's own
-// hard floor (2000): polling faster is what trips IG's rate limiter, and polling
-// slower just adds avoidable lag to every reply (IG has no DM push, so
-// worst-case latency is one poll cycle).
-const MIN_POLL_INTERVAL_MS = 2000;
+// The floor is the package's documented safe minimum. Polling faster is what
+// trips Instagram's 429 throttle — 2000 ms here is a datacenter-IP rate-limit,
+// not extra speed — and polling slower just adds avoidable lag to every reply
+// (IG has no DM push, so worst-case latency is one poll cycle).
+const MIN_POLL_INTERVAL_MS = 15000;
 const BACKOFF_START_MS = 30000;
 const BACKOFF_MAX_MS = 10 * 60 * 1000;
 

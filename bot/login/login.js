@@ -69,7 +69,7 @@ async function connect(cookieData, sessionParams) {
       appStateFile: APPSTATE_FILE,
       // Keep the package's own poll floor in step with the bot's requested
       // interval, otherwise listen() silently raises a short cycle back up.
-      minPollIntervalMs: global.InstaBot.config.pollInterval ?? 2000
+      minPollIntervalMs: global.InstaBot.config.pollInterval ?? 15000
     });
     try {
       const info = await native.init();

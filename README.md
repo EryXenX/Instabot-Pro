@@ -330,11 +330,14 @@ new messages. Reply latency is bounded by the poll interval:
 
 ```jsonc
 // config.json
-"pollInterval": 2000
+"pollInterval": 15000
 ```
 
-Lower is snappier but sends more requests (rate-limit risk); `1500`–`3000` is a
-good range. Default `15000`.
+`15000` is the library's documented safe floor. Polling faster (the old `2000`)
+does not make replies meaningfully snappier on a datacenter IP like Render's — it
+just trips Instagram's 429 throttle, which stalls the inbox and makes the bot look
+deaf. Raise it further if 429s persist, or put a residential proxy in front and
+lower it.
 
 ---
 

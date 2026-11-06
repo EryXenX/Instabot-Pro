@@ -255,6 +255,10 @@ function startReactionWatcher(api, options = {}) {
         await processThread(key, cfg);
       } catch (error) {
         logger.warn("REACTION", getText("handlerEvents", "listenError", error.message || error));
+      } finally {
+        // A dead push client is re-armed here, since the poll below is skipped
+        // while realtime is up.
+        ensureRealtime();
       }
     }, rtDebounceMs);
     if (t.unref) t.unref();
@@ -280,22 +284,44 @@ function startReactionWatcher(api, options = {}) {
       .catch(() => {});
   }
 
-  let rtHandlersAttached = false;
   let rtSubscribedAt = 0;
+  // Local view of the push path. The client's own `connected` flag is the
+  // source of truth when it has one, but the watcher also needs to remember the
+  // state across a client swap, so it keeps this in step on connect/drop/stop.
+  let rtUp = false;
+
+  // The realtime client is only "up" when it says so: realtimeConnect() hands
+  // back a fresh instance after a drop, so a non-null rtClient can still be a
+  // dead socket. Callers gate the poll on this.
+  const rtConnected = () => !!(rtUp && (!rtClient || rtClient.connected !== false));
+
+  // Make sure the push path is actually live. Called on startup and whenever the
+  // poller is about to be skipped, so a client that silently died (or was
+  // replaced) does not leave the watcher with neither push nor poll.
+  function ensureRealtime() {
+    if (rtStopped || stopped) return;
+    if (rtConnected()) return;
+    if (rtReconnecting || rtTimer) return; // a reconnect is already scheduled
+    connectRealtime();
+  }
 
   async function connectRealtime() {
     if (rtStopped || stopped) return;
     if (typeof api.realtimeConnect !== "function") return; // no realtime on this client
+    if (rtConnected()) return; // already up; a second connect would duplicate it
     try {
       const client = await api.realtimeConnect();
-      rtClient = client;
-      if (!rtHandlersAttached) {
-        rtHandlersAttached = true;
+      // realtimeConnect() hands back a fresh client after a drop, so handlers are
+      // attached per instance rather than once — otherwise a reconnected client
+      // has no "direct" listener and the reaction fast path goes silent.
+      if (client !== rtClient) {
+        rtClient = client;
         client.on("error", (error) => logger.warn("REACTION", `realtime: ${error.message || error}`));
-        client.on("disconnected", () => { if (!rtStopped && !stopped) scheduleRealtimeReconnect(); });
+        client.on("disconnected", () => { rtUp = false; if (!rtStopped && !stopped) scheduleRealtimeReconnect(); });
         client.on("direct", onRealtimeDirect);
       }
       await api.realtimeSubscribe();
+      rtUp = true;
       rtSubscribedAt = Date.now();
       rtReconnectDelay = RT_RECONNECT_MS;
       // Warm the internal->inbox thread id map now, so the first reaction is not
@@ -307,6 +333,7 @@ function startReactionWatcher(api, options = {}) {
       // 429. Retrying every 5s just piles requests on the throttle (and on a
       // datacenter IP it never wins), so back off exponentially to a ceiling.
       logger.warn("REACTION", `realtime unavailable, polling only: ${error.message || error}`);
+      rtUp = false;
       scheduleRealtimeReconnect();
     }
   }
@@ -337,6 +364,15 @@ function startReactionWatcher(api, options = {}) {
       backoff = tickMs;
       return schedule(tickMs);
     }
+    // While realtime push is up it is the fast path and the poll is redundant —
+    // one thread-detail read every 5s is a big part of what trips the 429
+    // throttle, and the push path already covers both features. Keep the client
+    // honest instead, and fall back to the poll when it is down.
+    if (rtConnected()) {
+      backoff = tickMs;
+      return schedule(tickMs);
+    }
+    ensureRealtime();
     if (!threadIDs.length || Date.now() - lastThreadsAt > REFRESH_THREADS_MS) {
       await refreshThreads();
     }
@@ -367,6 +403,7 @@ function startReactionWatcher(api, options = {}) {
   return () => {
     stopped = true;
     rtStopped = true;
+    rtUp = false;
     if (timer) clearTimeout(timer);
     if (rtTimer) clearTimeout(rtTimer);
     for (const t of rtDebounce.values()) clearTimeout(t);
