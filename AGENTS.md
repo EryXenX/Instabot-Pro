@@ -301,3 +301,13 @@ with `config.realtime: false`.
 `bot/login/login.js` also re-arms a realtime listener that drops *after* it
 subscribed: the package only re-arms a *pre*-subscribe failure
 (`bot/handler/listen.js`, `REARM_START_MS` 3s → `REARM_MAX_MS` 60s).
+
+## A lost reply is a lost command (handler dispatch)
+
+`bot/handler/handlerAction.js` fires the async sub-handlers (`onStart`, `onChat`,
+`onReaction`, …) **without awaiting them** — that is upstream GoatBot-Pro order,
+so it stays. But an un-awaited rejection (a send that hits a 429 while Instagram
+throttles the session) used to escape as a process-level `unhandledRejection`,
+so the reply vanished and only a stack trace was logged. Each sub-handler is now
+wrapped in a `dispatch(name, fn)` that attaches `.catch()` and logs under
+`HANDLER`. `tools/test/handlerDispatch.test.js` guards it (fails on the old code).
