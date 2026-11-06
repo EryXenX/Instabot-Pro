@@ -102,10 +102,16 @@ const startReactionWatcher = require("../../bot/handler/reactionWatcher");
 // A fake realtime client so the fast path can be driven without a network: the
 // watcher calls api.realtimeConnect()/realtimeSubscribe() and listens for
 // "direct" patches. It also serves the inbox with the internal->inbox thread
-// id mapping the realtime path resolves through.
+// id mapping the realtime path resolves through. The watcher only polls while
+// realtime is *unavailable*, so the switch lets the poll phases run against a
+// broker that refuses to connect.
 const rtClient = new EventEmitter();
 rtClient.disconnect = () => {};
-api.realtimeConnect = async () => rtClient;
+let rtAvailable = false;
+api.realtimeConnect = async () => {
+  if (!rtAvailable) throw new Error("no broker");
+  return rtClient;
+};
 api.realtimeSubscribe = async () => ({ seqId: 1, snapshotAtMs: Date.now() });
 api.getInbox = async () => ({
   threads: [{ id: THREAD, thread_id: "340282366841710301281155975261028596837" }]
@@ -162,6 +168,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   stopOld();
   calls.length = 0;
   global.InstaBot.config.reactUnsend = { enable: false, onlyAdmin: true, emojis: [] };
+  // Bring the broker up: the watcher then uses push and skips the poll.
+  rtAvailable = true;
   const stopRt = startReactionWatcher(api, { tickMs: 600000, replayGuardMs: 0, rtDebounceMs: 20 });
   await sleep(100);
 
@@ -177,6 +185,18 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   await sleep(400);
   assert("realtime push dispatched onReaction", calls.length === 1 && calls[0].reactor === ADMIN);
   assert("realtime dispatch used the resolved inbox threadID", calls[0] && calls[0].threadID === THREAD);
+
+  // While push is up the round-robin poll must not run — that per-thread detail
+  // read every few seconds is a big part of what trips the 429 throttle. Let
+  // several short ticks elapse and confirm no thread detail was fetched.
+  let detailReads = 0;
+  const origFetchDetail = api.api.thread.fetchDetail;
+  api.api.thread.fetchDetail = async (...args) => { detailReads++; return origFetchDetail(...args); };
+  const stopGated = startReactionWatcher(api, { tickMs: 60, replayGuardMs: 0 });
+  await sleep(300);
+  stopGated();
+  api.api.thread.fetchDetail = origFetchDetail;
+  assert("poll skipped while realtime push is up", detailReads === 0);
 
   // A "remove" patch (un-react) must not dispatch.
   const P5 = "mid.$p5";

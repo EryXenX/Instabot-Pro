@@ -16,7 +16,7 @@
     "node": ">=18"
   },
   "dependencies": {
-    "@eryxenx/insta-chat": "^2.1.1",
+    "@eryxenx/insta-chat": "^2.1.2",
     "@napi-rs/canvas": "^0.1.80",
     "axios": "^1.13.1",
     "axios-cookiejar-support": "^5.0.5",
