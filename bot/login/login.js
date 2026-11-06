@@ -69,7 +69,14 @@ async function connect(cookieData, sessionParams) {
       appStateFile: APPSTATE_FILE,
       // Keep the package's own poll floor in step with the bot's requested
       // interval, otherwise listen() silently raises a short cycle back up.
-      minPollIntervalMs: global.InstaBot.config.pollInterval ?? 15000
+      minPollIntervalMs: global.InstaBot.config.pollInterval ?? 15000,
+      // Realtime (MQTT push) is opt-in. It delivers a DM in ~1s instead of one
+      // poll cycle, but on some datacenter hosts the broker connects and
+      // subscribes yet never delivers an inbound item (see a73e037), which
+      // leaves the bot deaf. Polling is the guaranteed path, so it stays the
+      // default; set config.realtime to true to switch, and the package falls
+      // back to polling automatically if the broker cannot be reached.
+      realtime: { enabled: global.InstaBot.config.realtime === true, fallback: true }
     });
     try {
       const info = await native.init();
