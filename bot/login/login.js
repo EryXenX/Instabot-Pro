@@ -119,6 +119,8 @@ async function loginBot() {
   // A throttled read resolves null and frozen code destructures it into a crash;
   // retry transient nulls so commands answer instead of erroring.
   require("../readGuards").install(api);
+  const pacing = require("../pacing").applySendPacing(global.InstaBot.config);
+  logger.info("SESSION", getText("login", "sendPacing", pacing.globalMinGapMs, pacing.perThreadMinGapMs, pacing.jitterMs));
   api.username = info.username || null;
   logger.success("LOGIN INSTAGRAM", getText("login", "loginSuccess", info.username || info.userID));
   return api;

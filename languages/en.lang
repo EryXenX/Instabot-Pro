@@ -5,6 +5,7 @@
 login.staleSessionParams=Supplied session params are stale; retrying login without them
 login.noCookie=No Instagram cookie found in account.txt or config.json
 login.loginSuccess=Logged in to Instagram as %1
+login.sendPacing=Send pacing: global %1ms, per-thread %2ms, jitter %3ms (config.sendPacing)
 login.sessionInvalid=Instagram rejected the session (account suspended or cookie expired). Update account.txt with a fresh cookie and restart.
 login.sessionRateLimited=Instagram is rate-limiting this account (HTTP 429). Your cookie is still valid - wait a few minutes, then restart.
 login.sessionChallenge=Instagram requires a security check (challenge/checkpoint). Open the Instagram app, complete the verification, then restart the bot.
