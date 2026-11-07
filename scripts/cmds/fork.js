@@ -1,11 +1,11 @@
-exports.config = {
+Cmd install fork.js exports.config = {
   name: "fork",
-  version: "1.0.0",
+  version: "1.0.1",
   author: "EryXenX",
   countDown: 0,
   role: 0,
-  shortDescription: "Fork Link",
-  longDescription: "Responds with GitHub repo link when 'fork' or 'repository' is mentioned. Cooldown: 10 seconds.",
+  shortDescription: "Instagram Bot Fork Link",
+  longDescription: "Responds with the Instagram bot GitHub repo link when 'fork' or 'repository' is mentioned. Cooldown: 10 seconds.",
   category: "system",
   guide: {
     en: "Type 'fork' or 'repository'"
@@ -30,10 +30,7 @@ exports.onChat = async function({event: z, api: y}){
   if(fork){
     y.sendMessage(
 `🔗𝗚𝗶𝘁𝗛𝘂𝗯 𝗙𝗼𝗿𝗸 𝗟𝗶𝗻𝗸:
-https://github.com/EryXenX/GoatBot-Pro.git
-
-🎬 𝗦𝗲𝘁𝘂𝗽 𝗧𝘂𝘁𝗼𝗿𝗶𝗮𝗹👇🏼
-https://youtu.be/gPf_BFhQz_w?si=T1N6sB2DefeTGq2R`,
+https://github.com/EryXenX/Instabot-Pro.git`,
       t,
       z.messageID
     );
