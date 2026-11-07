@@ -46,16 +46,23 @@ function normalizeReplyFromPush(replied) {
 
 // The bridge as shipped, but with the `replied_to_message` object form mapped to
 // the same { repliedToItemId, repliedToMessage } pair the poller produces.
-function makePatchedBridge(original) {
-  return function rawEventFromMessageSync(event, selfId) {
+//
+// It also honours selfListen on a package that predates it: 2.2.0's bridge drops
+// the session's own sends unconditionally, and its listener does not forward the
+// option, so we carry the flag captured at install() time. Passing a null selfId
+// to the original disables only its self filter (selfId is used for nothing
+// else), letting a self-sent command through to the handler.
+function makePatchedBridge(original, selfListen) {
+  return function rawEventFromMessageSync(event, selfId, opts) {
+    const listenToSelf = !!(opts && opts.selfListen) || selfListen;
     const message = event && event.message ? event.message : event;
     // Only intervene when the original would drop reply linkage on a real
     // inbound item; otherwise defer to it so behaviour stays identical.
     const match = message && String(message.path || "").match(ITEM_PATH_RE);
     if (!match || !message.replied_to_message || message.replied_to_item_id != null) {
-      return original(event, selfId);
+      return original(event, listenToSelf ? null : selfId, opts);
     }
-    const out = original(event, selfId);
+    const out = original(event, listenToSelf ? null : selfId, opts);
     if (!out) return out;
     const reply = normalizeReplyFromPush(message.replied_to_message);
     if (reply) {
@@ -88,6 +95,9 @@ function install() {
   if (!bridge || typeof bridge.rawEventFromMessageSync !== "function") return false;
   if (bridge.__replyPatched) return false;
 
+  const fca = (global.InstaBot && global.InstaBot.config && global.InstaBot.config.optionsFca) || {};
+  const wantSelf = fca.selfListen === true;
+
   // Detect whether the installed package already handles the push object form.
   const probe = bridge.rawEventFromMessageSync(
     {
@@ -104,13 +114,43 @@ function install() {
     },
     "999"
   );
-  if (probe && probe.repliedToItemId) return false; // package already fixed it
+  const replyHandled = !!(probe && probe.repliedToItemId);
 
-  bridge.rawEventFromMessageSync = makePatchedBridge(bridge.rawEventFromMessageSync);
+  // Detect whether the installed package honours opts.selfListen: a self-sent
+  // message (senderID === selfId) must come back non-null when it is requested.
+  // 2.2.1 does not know the option and drops the message.
+  const selfProbe = bridge.rawEventFromMessageSync(
+    {
+      message: {
+        path: "/direct_v2/threads/1/items/2",
+        op: "add",
+        item_id: "2",
+        message_id: "mid.selfprobe",
+        user_id: "999",
+        item_type: "text",
+        text: "x"
+      }
+    },
+    "999",
+    { selfListen: true }
+  );
+  const selfHandled = !!selfProbe;
+
+  if (replyHandled && (!wantSelf || selfHandled)) return false; // package already covers it
+
+  // An older package drops self messages and does not forward the option to the
+  // bridge, so the shim carries the flag itself. Passing a null selfId to the
+  // original disables only its self filter (selfId is used for nothing else),
+  // letting a self-sent command through to the handler.
+  bridge.rawEventFromMessageSync = makePatchedBridge(bridge.rawEventFromMessageSync, wantSelf);
   bridge.__replyPatched = true;
   reloadListener();
-  log("applied push-reply compatibility shim (installed package predates 2.2.1)");
+  log(
+    "applied compatibility shim (installed package predates 2.2.2: " +
+      `${replyHandled ? "reply linkage ok" : "reply linkage patched"}, ` +
+      `selfListen ${selfHandled ? "native" : "patched"})`
+  );
   return true;
 }
 
-module.exports = { install };
+module.exports = { install, makePatchedBridge };

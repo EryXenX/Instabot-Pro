@@ -62,32 +62,59 @@ function isRateLimited(err) {
 // and the wall-clock total to the reply leaving. Printed as one LATENCY line so
 // the numbers can be read off without a debugger.
 function makeLatencyTracker(enabled) {
-  const pending = new Map(); // threadID -> { t0, detectMs, normalizeMs, handlerMs }
+  // threadID -> queue of open inbound entries. A queue (not one slot) is needed
+  // because with selfListen the bot's own reply is echoed back on the same
+  // thread: it must not overwrite the inbound entry it was answering.
+  const pending = new Map();
+  const TTL_MS = 15000;
   const record = (stage, threadID, ms) => {
     if (enabled) logger.info("LATENCY", `${stage}=${Math.round(ms)}ms thread=${threadID}`);
   };
+  const prune = (queue) => {
+    const now = Date.now();
+    while (queue.length && now - queue[0].t0 > TTL_MS) queue.shift();
+  };
   return {
-    onDetect(threadID, timestampMs) {
+    onDetect(threadID, timestampMs, messageID) {
       if (!enabled) return;
-      pending.set(String(threadID), {
+      const key = String(threadID);
+      const queue = pending.get(key) || [];
+      prune(queue);
+      queue.push({
+        messageID: messageID || null,
         t0: Date.now(),
         detectMs: timestampMs ? Date.now() - toMillis(timestampMs) : null
       });
+      pending.set(key, queue);
     },
     onNormalized(threadID, ms) {
-      const p = pending.get(String(threadID));
-      if (p) p.normalizeMs = ms;
+      const queue = pending.get(String(threadID));
+      if (!queue || !queue.length) return;
+      queue[queue.length - 1].normalizeMs = ms;
       record("normalize", threadID, ms);
     },
     onHandled(threadID, ms) {
-      const p = pending.get(String(threadID));
-      if (p) p.handlerMs = ms;
+      const queue = pending.get(String(threadID));
+      if (!queue || !queue.length) return;
+      queue[queue.length - 1].handlerMs = ms;
       record("handler", threadID, ms);
     },
-    onSent(threadID, ms) {
-      const p = pending.get(String(threadID));
+    onSent(threadID, ms, sendStart) {
       record("send", threadID, ms);
-      if (!p) return;
+      const key = String(threadID);
+      const queue = pending.get(key);
+      if (!queue || !queue.length) return;
+      prune(queue);
+      // Close the most recent inbound that started before this send; the echoed
+      // reply the bot just produced is newer than sendStart and stays open.
+      const startedAt = sendStart == null ? Date.now() : sendStart;
+      let idx = -1;
+      for (let i = 0; i < queue.length; i += 1) {
+        if (queue[i].t0 <= startedAt) idx = i;
+      }
+      if (idx < 0) return;
+      const p = queue.splice(idx, 1)[0];
+      if (!queue.length) pending.delete(key);
       const total = Date.now() - p.t0;
       record("detect", threadID, p.detectMs == null ? 0 : p.detectMs);
       logger.info(
@@ -97,7 +124,6 @@ function makeLatencyTracker(enabled) {
         `normalize=${p.normalizeMs == null ? "?" : Math.round(p.normalizeMs)}ms ` +
         `handler=${p.handlerMs == null ? "?" : Math.round(p.handlerMs)}ms send=${Math.round(ms)}ms)`
       );
-      pending.delete(String(threadID));
     }
   };
 }
@@ -117,10 +143,10 @@ function startListening(api) {
       const result = originalSend.call(this, form, threadID, ...rest);
       if (result && typeof result.then === "function") {
         return result.then((value) => {
-          latency.onSent(threadID, Date.now() - t);
+          latency.onSent(threadID, Date.now() - t, t);
           return value;
         }, (err) => {
-          latency.onSent(threadID, Date.now() - t);
+          latency.onSent(threadID, Date.now() - t, t);
           throw err;
         });
       }
@@ -232,7 +258,7 @@ function startListening(api) {
       logger.info("LISTEN", `deduped duplicate ${raw.messageID || raw.itemID || "?"} thread=${threadID}`);
       return;
     }
-    latency.onDetect(threadID, raw.timestamp);
+    latency.onDetect(threadID, raw.timestamp, raw.messageID || raw.itemID);
 
     let event;
     const tNorm = Date.now();
@@ -245,8 +271,11 @@ function startListening(api) {
     latency.onNormalized(threadID, Date.now() - tNorm);
     if (!event) return;
 
-    // Never react to the bot's own outbound messages.
-    if (event.senderID && String(event.senderID) === String(global.InstaBot.userID)) return;
+    // Drop the bot's own outbound messages unless selfListen is on (FCA
+    // parity): with selfListen the bot answers commands sent from its own
+    // account, which is how the operator tests without a second account.
+    const selfListen = global.InstaBot.config.optionsFca?.selfListen === true;
+    if (!selfListen && event.senderID && String(event.senderID) === String(global.InstaBot.userID)) return;
 
     // Skip the history Instagram replays for a thread the bot has just joined:
     // those messages were sent before this run started, so the bot must not
@@ -343,3 +372,4 @@ function startListening(api) {
 }
 
 module.exports = startListening;
+module.exports.makeLatencyTracker = makeLatencyTracker;

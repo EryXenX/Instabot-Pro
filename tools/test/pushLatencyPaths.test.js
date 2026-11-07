@@ -114,6 +114,32 @@ async function run() {
   );
   ok("flat replied_to_item_id still honoured", flat.repliedToItemId === "12345");
 
+  // The selfListen fallback for an older package: 2.2.0/2.2.1 drop the session's
+  // own messages and do not know the option. The shim carries the flag captured
+  // at install() time and passes a null selfId to disable only the self filter.
+  const dropSelf = (event, selfId) => {
+    const m = event && event.message ? event.message : event;
+    if (m && String(m.user_id) === String(selfId)) return null;
+    return { messageID: m.message_id, senderID: String(m.user_id), body: m.text };
+  };
+  const selfPush = {
+    message: {
+      path: `/direct_v2/threads/${THREAD}/items/5`,
+      op: "add",
+      item_id: "5",
+      message_id: "mid.selfcmd",
+      user_id: Number(SELF),
+      item_type: "text",
+      text: "/help"
+    }
+  };
+  const offShim = compat.makePatchedBridge(dropSelf, false);
+  ok("self-sent push dropped when selfListen is off", offShim(selfPush, SELF) === null);
+  const onShim = compat.makePatchedBridge(dropSelf, true);
+  const onRaw = onShim(selfPush, SELF);
+  ok("self-sent push delivered when selfListen is on", !!onRaw && onRaw.senderID === SELF);
+  ok("delivered self message keeps its body", onRaw.body === "/help");
+
   console.log(`\n\u2714 ${checks} checks passed — push reply linkage + reaction fast path`);
 }
 
