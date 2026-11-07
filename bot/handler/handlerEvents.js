@@ -12,6 +12,7 @@ const path = require("path");
 const { logger, getText } = require("../utils");
 const getTime = require("../utils/getTime");
 const createGetText2 = require("./createGetText2");
+const { checkWhitelist, checkThreadWhitelist } = require("./whitelist");
 
 const nullAndUndefined = [undefined, null];
 
@@ -66,6 +67,23 @@ function isBannedOrOnlyAdmin(userData, threadData, senderID, threadID, isGroup, 
   if (config.adminOnly?.enable === true && !adminBot.includes(String(senderID)) && !(config.adminOnly.ignoreCommand || []).includes(commandName)) {
     if (hideNotiMessage.adminOnly === false) {
       message.reply(getText({ lang: langCode, head: "handlerEvents" }, "onlyAdminBot"));
+    }
+    return true;
+  }
+
+  // whiteListMode / whiteListModeThread: the config existed but nothing read it,
+  // so enabling it did nothing. Enforce it here (this gate runs before onChat,
+  // onFirstChat, onReply and onReaction) and in onStart, which had no gate.
+  const wl = checkWhitelist(config, senderID, threadID);
+  if (!wl.allowed) {
+    // Never reply the notice to the bot's own account: with selfListen on, the
+    // notice is echoed back as an inbound message and the bot would answer its
+    // own answer (a bounded but real loop).
+    const isSelf = String(senderID) === String(global.InstaBot?.userID);
+    if (!isSelf && wl.reason === "user" && config.whiteListMode?.notice === true) {
+      message.reply(getText({ lang: langCode, head: "handlerEvents" }, "onlyWhiteListUser"));
+    } else if (!isSelf && wl.reason === "thread" && config.whiteListModeThread?.notice === true) {
+      message.reply(getText({ lang: langCode, head: "handlerEvents" }, "onlyWhiteListThread"));
     }
     return true;
   }
@@ -205,6 +223,22 @@ module.exports = function (api) {
     let isUserCallCommand = false;
     async function onStart() {
       if (!body) return;
+
+      // whiteListMode / whiteListModeThread gate. onStart is the main command
+      // path and called isBannedOrOnlyAdmin nowhere, so a non-whitelisted sender
+      // could still run every command. Drop them here, before any parsing, so
+      // the bot stays silent for them (the reply is opt-in via *.notice).
+      const wl = checkWhitelist(config, senderID, threadID);
+      if (!wl.allowed) {
+        const isSelf = String(senderID) === String(global.InstaBot?.userID);
+        if (!isSelf && wl.reason === "user" && config.whiteListMode?.notice === true) {
+          return await message.reply(getText({ lang: langCode, head: "handlerEvents" }, "onlyWhiteListUser"));
+        }
+        if (!isSelf && wl.reason === "thread" && config.whiteListModeThread?.notice === true) {
+          return await message.reply(getText({ lang: langCode, head: "handlerEvents" }, "onlyWhiteListThread"));
+        }
+        return;
+      }
 
       // ══════════ NO PREFIX SYSTEM ══════════
       const noPrefixEnable = config.noPrefix?.enable === true;
@@ -502,6 +536,7 @@ module.exports = function (api) {
     /* +-------------------- EVENT COMMAND --------------------+ */
     async function handlerEvent() {
       const { author } = event;
+      if (!checkThreadWhitelist(config, threadID).allowed) return;
       for (const [key] of GoatBot.eventCommands.entries()) {
         const getEvent = GoatBot.eventCommands.get(key);
         if (!getEvent) continue;
@@ -525,6 +560,7 @@ module.exports = function (api) {
     async function onEvent() {
       const allOnEvent = GoatBot.onEvent || [];
       const { author } = event;
+      if (!checkThreadWhitelist(config, threadID).allowed) return;
       for (const key of allOnEvent) {
         if (typeof key !== "string") continue;
         const command = GoatBot.commands.get(key);
