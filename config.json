@@ -40,12 +40,14 @@
   "whiteListMode": {
     "enable": false,
     "whiteListIds": [],
-    "notes": "If enabled, only IDs in whiteListIds can use the bot."
+    "notice": false,
+    "notes": "If enabled, only IDs in whiteListIds can use the bot (bot admins in adminBot always bypass). notice:true replies a Restricted message to blocked senders."
   },
   "whiteListModeThread": {
     "enable": false,
     "whiteListThreadIds": [],
-    "notes": "If enabled, only threads in whiteListThreadIds can use the bot."
+    "notice": false,
+    "notes": "If enabled, only threads in whiteListThreadIds can use the bot. notice:true replies a Restricted message to blocked threads."
   },
   "noPrefix": {
     "enable": true,
