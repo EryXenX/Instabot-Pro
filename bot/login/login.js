@@ -76,7 +76,11 @@ async function connect(cookieData, sessionParams) {
       // leaves the bot deaf. Polling is the guaranteed path, so it stays the
       // default; set config.realtime to true to switch, and the package falls
       // back to polling automatically if the broker cannot be reached.
-      realtime: { enabled: global.InstaBot.config.realtime === true, fallback: true }
+      realtime: { enabled: global.InstaBot.config.realtime === true, fallback: true },
+      // FCA selfListen: true = also process commands sent from the bot's own
+      // account (useful for testing). Off by default; the bot otherwise drops
+      // its own outbound messages so a command cannot reply to itself forever.
+      selfListen: global.InstaBot.config.optionsFca?.selfListen === true
     });
     try {
       const info = await native.init();
