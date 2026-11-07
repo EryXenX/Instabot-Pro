@@ -1,0 +1,135 @@
+{
+  "prefix": "/",
+  "language": "en",
+  "timeZone": "Asia/Dhaka",
+  "database": {
+    "type": "json",
+    "notes": "Instabot-Pro ships the JSON backend only.",
+    "autoSyncWhenStart": false
+  },
+  "adminBot": [
+    "35009311397",
+    "68311189434",
+    "59605953590",
+    "69321172417",
+    "80054943614"
+  ],
+  "premiumUsers": [
+    "35009311397",
+    "68311189434",
+    "59605953590"
+  ],
+  "devUsers": [
+    "35009311397",
+    "68311189434",
+    "59605953590"
+  ],
+  "adminOnly": {
+    "enable": false,
+    "ignoreCommand": []
+  },
+  "hideNotiMessage": {
+    "commandNotFound": false,
+    "adminOnly": false,
+    "needRoleToUseCmd": false,
+    "userBanned": false,
+    "threadBanned": false,
+    "needRoleToUseCmdOnReply": false,
+    "needRoleToUseCmdOnReaction": false
+  },
+  "whiteListMode": {
+    "enable": false,
+    "whiteListIds": [],
+    "notes": "If enabled, only IDs in whiteListIds can use the bot (bot admins in adminBot always bypass). Blocked senders get no reply — silent."
+  },
+  "whiteListModeThread": {
+    "enable": false,
+    "whiteListThreadIds": [],
+    "notes": "If enabled, only threads in whiteListThreadIds can use the bot. Blocked threads get no reply — silent."
+  },
+  "noPrefix": {
+    "enable": true,
+    "notes": "true = only bot admins can use commands without prefix | false = everyone must use prefix"
+  },
+  "reactUnsend": {
+    "enable": true,
+    "onlyAdmin": true,
+    "emojis": [
+      "😡",
+      "🤬"
+    ],
+    "skipPollUnderRealtime": true,
+    "notes": "If enable = true, bot will unsend any message reacted with these emojis. If onlyAdmin = true, only adminBot IDs can trigger it. skipPollUnderRealtime: when true the reaction watcher stops its 5s round-robin thread-detail poll while its realtime MQTT push is connected. The push carries a reaction as a `/items/<iid>/reactions/likes/<reactor>` patch (verified live), so the poll is redundant then - and it was a big part of the inbox 429 throttle. The watcher resumes polling automatically whenever the push is down."
+  },
+  "enableTypingIndicator": false,
+  "logEvents": {
+    "disableAll": false,
+    "message": true,
+    "message_reaction": true,
+    "message_unsend": true,
+    "message_reply": true,
+    "event": true,
+    "read_receipt": false,
+    "typ": false,
+    "presence": false
+  },
+  "credentials": {
+    "gmailAccount": {
+      "email": "",
+      "clientId": "disabled",
+      "clientSecret": "disabled",
+      "refreshToken": "disabled",
+      "apiKey": ""
+    },
+    "gRecaptcha": {
+      "siteKey": "",
+      "secretKey": ""
+    },
+    "notes": "'disabled' keeps the googleapis-backed utils loadable without OAuth credentials; fill these in to enable Google Drive features."
+  },
+  "instagramAccount": {
+    "sessionCookie": "",
+    "sessionParams": {},
+    "notes": "Paste the browser cookie JSON (or the sessionid) here; see README.md. account.txt takes precedence when present. sessionParams (optional) is the JSON object of web params (__dyn/__csr/__hs/...) used to skip the in-container browser harvest; INSTAGRAM_SESSION_PARAMS overrides it."
+  },
+  "pollInterval": 15000,
+  "notesPollInterval": "How often (ms) the bot polls the Instagram DM inbox when realtime is off. Instagram has no reliable DM push, so a reply waits up to this long. 15000 is the library's documented safe floor; polling faster (the old 2000) trips Instagram's 429 throttle. With realtime true this poll becomes the safety net only, and realtimeSafetyPollMs governs it.",
+  "realtime": true,
+  "notesRealtime": "true (default) = subscribe to Instagram's MQTT message-sync push so a DM arrives in ~1s. The push rides the session's single shared MQTT client, so the listener and the reaction watcher no longer steal the stream from each other. A safety poll (realtimeSafetyPollMs) runs underneath as a fallback, so a push that connects and then goes quiet does not leave the bot deaf. Set false to poll only.",
+  "sendPacing": {
+    "globalMinGapMs": 500,
+    "perThreadMinGapMs": 700,
+    "jitterMs": 300,
+    "notes": "Outbound-send pacing (antiSuspension). The package's conservative defaults (global 1500, per-thread 2500, jitter 1500) add ~2.5-3.7s to every reply; these lower values keep a human-like rhythm at under 1s. Raise them toward the defaults if Instagram starts throttling sends (429)."
+  },
+  "proxy": "",
+  "notesProxy": "Route all Instagram HTTP traffic through a proxy, e.g. \"http://user:pass@host:port\" or {\"https\":\"http://...\",\"http\":\"http://...\"}. Strongly recommended on a VPS: a data-centre IP is the main reason Instagram logs the session out or suspends it. Use a residential or mobile proxy.",
+  "botName": "Instabot-Pro",
+  "nickNameBot": "Instabot-Pro",
+  "typingDuration": 2000,
+  "notesTypingIndicator": "true = show 'is typing...' before every reply (more human-like, adds visible delay) | false = reply instantly, no typing shown",
+  "onlyAdminBox": false,
+  "antiInbox": false,
+  "notesLanguage": "change language using ISO 639-1 code",
+  "autoRestart": {
+    "enable": true,
+    "time": "1440"
+  },
+  "port": 3000,
+  "optionsFca": {
+    "forceLogin": true,
+    "listenEvents": true,
+    "updatePresence": true,
+    "listenTyping": true,
+    "logLevel": "error",
+    "selfListen": false,
+    "selfListenEvent": true,
+    "autoMarkDelivery": false,
+    "autoReconnect": true,
+    "notes": "GoatBot-Pro style FCA options; the Instagram adapter forwards the fields it supports and no-ops the rest."
+  },
+  "realtimeSafetyPollMs": 8000,
+  "notesRealtimeSafetyPollMs": "With realtime true, the inbox poll runs only as a safety net at this interval (floor 4000). It has its own 429 backoff and never blocks the push path. 8000 keeps a warm fallback without tripping Instagram's read throttle.",
+  "latencyLog": true,
+  "notesLatencyLog": "true = log a LATENCY line per reply with detect/normalize/handler/send/total ms, so reply slowness can be measured instead of guessed."
+}
