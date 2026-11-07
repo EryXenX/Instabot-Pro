@@ -9,6 +9,7 @@ const graphBridge = require("./bot/graphBridge");
 const mediaBridge = require("./bot/mediaBridge");
 const ttyCompat = require("./bot/ttyCompat");
 const realtimeBridgeCompat = require("./bot/realtimeBridgeCompat");
+const linkMessageCompat = require("./bot/linkMessageCompat");
 
 // Install before commands require axios so their client shares the interceptor.
 httpRetry.install();
@@ -62,6 +63,10 @@ async function start() {
   // installed package older than 2.2.1 drops that linkage, which stalls every
   // reply until the next poll. Patch the bridge before listen() runs.
   realtimeBridgeCompat.install();
+  // A URL-bearing DM arrives as a link preview (xma_link / MESSAGE_INLINE_SHARE);
+  // an installed package older than 2.2.3 dropped it, so URL commands got no
+  // reply. No-op once 2.2.3+ is installed.
+  linkMessageCompat.install();
 
   startListening(api);
   startReactionWatcher(api);
