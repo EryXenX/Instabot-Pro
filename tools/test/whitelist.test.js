@@ -134,8 +134,69 @@ async function e2e() {
   await new Promise((r) => setTimeout(r, 30));
   ok("blocked sender gets no reply (silent)", sent.length === 0);
   ok("blocked sender does not run the command", !calls.includes("pp"));
+}
 
-  console.log(`✔ ${checks} checks passed — whitelist mode enforced`);
+// ── end-to-end: onChat commands must obey the whitelist too ───────────────
+// baby.js does its work *inside* onChat and returns a message object, not a
+// handler function. The gate sat inside `.then(handler => ...)`, so it only ran
+// for commands that returned a handler — an onChat command that answered
+// directly ignored the whitelist and a stranger could still trigger it.
+async function onChatGate() {
+  const worked = [];
+
+  global.InstaBot = {
+    config: { prefix: "/", adminBot: [ADMIN], whiteListMode: { enable: true, whiteListIds: [USER] } },
+    commands: new Map([
+      [
+        "baby",
+        {
+          config: { name: "baby", role: 0, countDown: 0 },
+          onStart: async () => {},
+          // Directly does the work and returns a value (like baby.js), NOT a handler.
+          onChat: async () => {
+            worked.push("baby");
+            return {};
+          }
+        }
+      ]
+    ]),
+    aliases: new Map(),
+    onChat: ["baby"],
+    onFirstChat: [],
+    onEvent: [],
+    eventCommands: new Map(),
+    onReply: new Map(),
+    onReaction: new Map(),
+    countDown: {},
+    configCommands: {},
+    userID: "1"
+  };
+  global.db = {
+    usersData: { get: async () => null, create: async () => ({ data: {}, settings: {} }) },
+    threadsData: { get: async () => null, create: async () => ({ data: {}, settings: {}, adminIDs: [], members: [] }) },
+    globalData: {},
+    dashBoardData: {}
+  };
+  global.client = {};
+
+  const handlerAction = require("../../bot/handler/handlerAction");
+  const api = { markAsRead: async () => {}, markAsDelivered: async () => {}, sendMessage: async () => ({}) };
+  const dispatch = handlerAction(api);
+  const mkEvent = (senderID) => ({ type: "message", threadID: THREAD, senderID, userID: senderID, messageID: "m" + Math.random(), body: "baby" });
+
+  await dispatch(mkEvent(USER));
+  await new Promise((r) => setTimeout(r, 30));
+  ok("whitelisted sender triggers onChat", worked.includes("baby"));
+
+  worked.length = 0;
+  await dispatch(mkEvent(STRANGER));
+  await new Promise((r) => setTimeout(r, 30));
+  ok("non-whitelisted sender cannot trigger onChat", !worked.includes("baby"));
+
+  worked.length = 0;
+  await dispatch(mkEvent(ADMIN));
+  await new Promise((r) => setTimeout(r, 30));
+  ok("admin can trigger onChat", worked.includes("baby"));
 }
 
 // ── the /whitelist command must follow a reloaded config ──────────────────
@@ -198,4 +259,8 @@ async function reloadedConfig() {
 
 reloadedConfig()
   .then(() => e2e())
+  .then(() => onChatGate())
+  .then(() => {
+    console.log(`✔ ${checks} checks passed — whitelist mode enforced`);
+  })
   .catch((err) => { console.error(err.stack || err.message); process.exit(1); });

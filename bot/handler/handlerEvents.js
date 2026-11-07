@@ -354,11 +354,17 @@ module.exports = function (api) {
           continue;
         }
 
+        // Gate here, before the command runs — not inside `.then(handler)`.
+        // Commands that answer directly inside onChat (baby.js) return a value,
+        // not a handler function, so the inner check never ran for them and a
+        // non-whitelisted sender could still drive them. onReply/onReaction
+        // already gate up front; onChat/onFirstChat must do the same.
+        if (isBannedOrOnlyAdmin(userData, threadData, senderID, threadID, isGroup, commandName, message, langCode)) continue;
+
         command
           .onChat({ ...parameters, isUserCallCommand, args, commandName, getLang })
           .then(async (handler) => {
             if (typeof handler === "function") {
-              if (isBannedOrOnlyAdmin(userData, threadData, senderID, threadID, isGroup, commandName, message, langCode)) return;
               try {
                 await handler();
                 logger.info("ON CHAT", `${commandName} | ${senderID} | ${threadID}`);
@@ -374,6 +380,10 @@ module.exports = function (api) {
     /* +--------------------- ON ANY EVENT ---------------------+ */
     async function onAnyEvent() {
       const allOnAnyEvent = GoatBot.onAnyEvent || [];
+      // Automatic handler: only the thread whitelist applies (same rule as
+      // onEvent/handlerEvent). It had no gate at all, so a non-whitelisted
+      // thread could still trigger it.
+      if (!checkThreadWhitelist(config, threadID).allowed) return;
       let args = [];
       if (typeof event.body === "string" && event.body.startsWith(prefix)) args = event.body.split(/ +/);
 
@@ -414,6 +424,12 @@ module.exports = function (api) {
         const command = GoatBot.commands.get(commandName);
         if (!command) continue;
 
+        // Gate before recording the thread as "first chatted" and before calling
+        // the command. The inner `.then(handler)` check is skipped for commands
+        // that do their work directly (and marking the thread first would burn
+        // the one-shot onFirstChat for a blocked sender).
+        if (isBannedOrOnlyAdmin(userData, threadData, senderID, threadID, isGroup, commandName, message, langCode)) continue;
+
         itemOnFirstChat.threadIDsChattedFirstTime.push(threadID);
         const getLang = createGetText2(langCode, prefix, command);
         const time = getTime("DD/MM/YYYY HH:mm:ss");
@@ -423,7 +439,6 @@ module.exports = function (api) {
           .onFirstChat({ ...parameters, isUserCallCommand, args, commandName, getLang })
           .then(async (handler) => {
             if (typeof handler === "function") {
-              if (isBannedOrOnlyAdmin(userData, threadData, senderID, threadID, isGroup, commandName, message, langCode)) return;
               try {
                 await handler();
                 logger.info("ON FIRST CHAT", `${commandName} | ${senderID} | ${threadID}`);
