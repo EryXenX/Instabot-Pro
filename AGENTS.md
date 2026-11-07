@@ -243,6 +243,17 @@ package's `exports` map exposes only `.` (no `package.json`, no `src/*`
 subpaths). The wrapper lives outside `scripts/cmds/*` (which stay frozen) and is
 installed from `InstaBot.js` before commands load.
 
+**Ordering is by `offline_threading_id`, not arrival.** Instagram sorts the
+thread by that id, which is `(unix_ms << 22) | random22`. A caption and its
+media committed in the same millisecond therefore tie on the timestamp and sort
+by their random low bits — so the image flipped above the text about half the
+time (reproduced live by delaying the caption POST 3s: the image then sorted
+first). `mediaBridge.install()` patches `HttpClient.prototype.offlineThreadingId`
+to be **strictly increasing** (once per process, shared counter), so the caption
+— whose body is built first — always sorts above the media. `tools/test/mediaOrder.test.js`
+guards monotonicity and timestamp plausibility.
+
+
 ## Config is a mutable global, not a constant
 
 `global.GoatBot.config` (`=== global.InstaBot.config`) is **reassigned** by

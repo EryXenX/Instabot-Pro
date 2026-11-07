@@ -9,7 +9,7 @@
   "main": "InstaBot.js",
   "scripts": {
     "start": "node index.js",
-    "test": "node tools/test/listenKeepAlive.test.js && node tools/test/listenRealtimeRearm.test.js && node tools/test/reactionWatcher.test.js && node tools/test/realtimeInbound.test.js && node tools/test/handlerDispatch.test.js && node tools/test/backlogGuard.test.js && node tools/test/inboundDedupe.test.js && node tools/test/safetyPollFallback.test.js && node tools/test/pacing.test.js && node tools/test/pushLatencyPaths.test.js && node tools/test/latencyTracker.test.js && node tools/test/whitelist.test.js && node tools/test/linkMessageFallback.test.js && node tools/test/uidCommand.test.js"
+    "test": "node tools/test/listenKeepAlive.test.js && node tools/test/listenRealtimeRearm.test.js && node tools/test/reactionWatcher.test.js && node tools/test/realtimeInbound.test.js && node tools/test/handlerDispatch.test.js && node tools/test/backlogGuard.test.js && node tools/test/inboundDedupe.test.js && node tools/test/safetyPollFallback.test.js && node tools/test/pacing.test.js && node tools/test/pushLatencyPaths.test.js && node tools/test/latencyTracker.test.js && node tools/test/whitelist.test.js && node tools/test/linkMessageFallback.test.js && node tools/test/uidCommand.test.js && node tools/test/mediaOrder.test.js"
   },
   "license": "MIT",
   "engines": {
