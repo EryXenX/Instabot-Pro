@@ -138,4 +138,64 @@ async function e2e() {
   console.log(`✔ ${checks} checks passed — whitelist mode enforced`);
 }
 
-e2e().catch((err) => { console.error(err); process.exit(1); });
+// ── the /whitelist command must follow a reloaded config ──────────────────
+// /loadconfig reassigns global.GoatBot.config to a fresh object. whitelist.js
+// used to capture the config at require time, so after a reload it mutated the
+// dead object: the toggle replied "ON", wrote config.json, yet the gate (which
+// reads the live global) still saw the old value. Same for /setting, which
+// wrote config.json without touching the in-memory object at all.
+async function reloadedConfig() {
+  const fs = require("fs-extra");
+  const os = require("os");
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "wl-cmd-"));
+  const cfgPath = path.join(dir, "config.json");
+  fs.writeJsonSync(cfgPath, {
+    prefix: "/",
+    adminBot: ["111"],
+    whiteListMode: { enable: false, whiteListIds: [] },
+    whiteListModeThread: { enable: false, whiteListThreadIds: [] }
+  });
+
+  global.client = { dirConfig: cfgPath };
+  global.db = { usersData: { getName: async (id) => String(id) } };
+  global.GoatBot = global.InstaBot = { config: fs.readJsonSync(cfgPath) };
+
+  const cmd = require("../../scripts/cmds/whitelist.js");
+  const getLang = (key, ...a) => {
+    let t = cmd.langs.en[key] || ("MISSING:" + key);
+    for (let i = a.length - 1; i >= 0; i--) t = t.replace(new RegExp(`%${i + 1}`, "g"), a[i]);
+    return t;
+  };
+  const run = async (args) => {
+    let reply = null;
+    await cmd.onStart({ message: { reply: async (t) => { reply = t; return { messageID: "m" }; } }, args, event: { mentions: {}, messageReply: null }, usersData: global.db.usersData, getLang });
+    return reply;
+  };
+
+  await run(["on"]);
+  ok("command turns mode on before reload", global.GoatBot.config.whiteListMode.enable === true);
+
+  // /loadconfig: the global points at a brand-new object
+  const reloaded = fs.readJsonSync(cfgPath);
+  global.GoatBot.config = global.InstaBot.config = reloaded;
+
+  await run(["add", "222"]);
+  ok("add after reload mutates the live config", reloaded.whiteListMode.whiteListIds.includes("222"));
+  ok("add after reload reaches the gate", checkWhitelist(reloaded, "222", "9001").allowed === true);
+
+  await run(["off"]);
+  ok("off after reload mutates the live config", reloaded.whiteListMode.enable === false);
+  ok("off after reload reaches the gate (everyone allowed)", checkWhitelist(reloaded, "999", "9001").allowed === true);
+
+  // status must report BOTH modes, else a thread-only setup shows a bare "OFF"
+  reloaded.whiteListModeThread = { enable: true, whiteListThreadIds: ["9001"] };
+  const status = await run(["status"]);
+  ok("status shows the user mode", /User whitelist: OFF/.test(status));
+  ok("status shows the thread mode", /Thread whitelist: ON/.test(status));
+
+  fs.removeSync(dir);
+}
+
+reloadedConfig()
+  .then(() => e2e())
+  .catch((err) => { console.error(err.stack || err.message); process.exit(1); });
