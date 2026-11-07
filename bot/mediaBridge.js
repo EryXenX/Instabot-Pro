@@ -1,15 +1,21 @@
-// Captioned-media send: commit the text and the attachment together.
+// Captioned-media send: commit the text and the attachment together, text first.
 //
 // Instagram's DM media mutation (IGDirectMediaSendMutation) has no caption
 // field, so `sendMessage({ body, attachment })` is necessarily two messages —
 // text then media. `@eryxenx/insta-chat` commits them sequentially, which on
 // the wire leaves a ~0.6-0.8s gap (measured via the realtime stream), so the
-// caption and the attachment visibly arrive apart.
+// caption and the attachment visibly arrive apart. Waiting for the caption
+// request to finish before starting the media commit buys nothing: both are
+// independent POSTs and the media one carries no reply target, so this bridge
+// commits them concurrently to collapse the gap.
 //
-// Waiting for the caption request to finish before starting the media commit
-// buys nothing: both are independent POSTs and the media one carries no reply
-// target. Committing them concurrently keeps the text first (its request is
-// issued first and returns sooner) while collapsing the gap to ~0.3-0.5s.
+// Which one renders on top is decided by Instagram from the message's
+// `offline_threading_id`, NOT by arrival order. That id is
+// `(unix_ms << 22) | random22`, so two sends built in the SAME millisecond sort
+// by their random low bits — the caption and the media flip ~half the time when
+// the commit is concurrent. We pin every id generated during this send to be
+// strictly increasing, and build the caption first, so the caption always sorts
+// above the media regardless of timing.
 //
 // The package pins its methods in `exports`, so `src/methods/media` cannot be
 // required by subpath; the module is resolved through the package entry and its
@@ -44,6 +50,25 @@ function install() {
   const original = MediaMethods.prototype._send;
   if (typeof original !== "function") return;
 
+  // Instagram sorts the thread by offline_threading_id, and ties within the same
+  // millisecond break by its random low bits. Patching the id generator to be
+  // strictly increasing means a caption built before the media always sorts
+  // above it — the ordering a captioned send intends. Installed once per process
+  // so the counter is shared across concurrent sends.
+  const HttpClient = require(path.join(packageRoot(), "src", "http.js"));
+  const httpProto = HttpClient.prototype;
+  const originalOfflineThreadingId = httpProto.offlineThreadingId;
+  if (typeof originalOfflineThreadingId !== "function") return;
+  if (!httpProto.__monotonicOfflineThreadingId) {
+    let next = 0n;
+    httpProto.offlineThreadingId = function () {
+      const id = BigInt(originalOfflineThreadingId.call(this));
+      next = id > next ? id : next + 1n;
+      return next.toString();
+    };
+    httpProto.__monotonicOfflineThreadingId = true;
+  }
+
   MediaMethods.prototype._send = async function (threadID, uploadOptions, options = {}) {
     if (!options || !options.text) return original.call(this, threadID, uploadOptions, options);
 
@@ -58,9 +83,13 @@ function install() {
       // The caption still takes a paced turn (it is a message send), but the
       // media commit joins it immediately instead of waiting for it to finish.
       await globalAntiSuspension.waitForTurn(threadID);
+      // Build the caption — and therefore its offline_threading_id — before the
+      // media's. With the id generator pinned monotonic the caption sorts first
+      // even though both requests are in flight together.
       const caption = this._sendCaption(threadID, options.text);
       await globalAntiSuspension.waitForTurn(threadID, { immediate: true });
-      const [, mediaResult] = await Promise.all([caption, this._commitMedia(threadID, fbid, options)]);
+      const media = this._commitMedia(threadID, fbid, options);
+      const [, mediaResult] = await Promise.all([caption, media]);
       return mediaResult;
     } catch (error) {
       globalAntiSuspension.noteSendError(error);
