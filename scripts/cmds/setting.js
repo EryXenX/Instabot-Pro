@@ -172,6 +172,16 @@ module.exports = {
 
 		function saveConfig() {
 			fs.writeFileSync(configPath, JSON.stringify(config, null, 2), "utf8");
+			// Keep the in-memory config the rest of the bot reads in sync with what we
+			// just wrote. handlerEvents resolves global.InstaBot.config per event, but a
+			// stale reference keeps the old value until a restart — toggling whitelist
+			// here wrote config.json yet the enforcement gate never saw it. Mutate in
+			// place so modules that captured the object at load time also see it.
+			const live = global.GoatBot?.config || global.InstaBot?.config;
+			if (live && live !== config) {
+				for (const key of Object.keys(live)) delete live[key];
+				Object.assign(live, config);
+			}
 		}
 
 		async function sendAndListen(text, newState, extra = {}) {
