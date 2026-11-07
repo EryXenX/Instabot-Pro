@@ -125,24 +125,15 @@ async function e2e() {
   await new Promise((r) => setTimeout(r, 30));
   ok("admin bypasses whitelist", calls.includes("pp"));
 
-  // notice path: stranger with notice:true gets one Restricted reply
-  global.InstaBot.config.whiteListMode = { enable: true, whiteListIds: [USER], notice: true };
-  global.InstaBot.userID = "1"; // sender is not the bot
+  // silent: a blocked stranger gets NO reply at all
   const sent = [];
   api.sendMessage = async (text) => { sent.push(text); return {}; };
+  global.InstaBot.userID = "1"; // sender is not the bot
   calls.length = 0;
   await dispatch(mkEvent(STRANGER));
   await new Promise((r) => setTimeout(r, 30));
-  ok("notice:true replies Restricted to stranger", sent.some((t) => String(t).includes("not on the whitelist")));
-  ok("notice path does not run the command", !calls.includes("pp"));
-
-  // notice path: the bot must NOT notice its own echoed message (selfListen loop)
-  sent.length = 0;
-  global.InstaBot.userID = STRANGER; // sender is now the bot itself
-  await dispatch(mkEvent(STRANGER));
-  await new Promise((r) => setTimeout(r, 30));
-  ok("notice is not sent to the bot's own account", sent.length === 0);
-  global.InstaBot.userID = "1";
+  ok("blocked sender gets no reply (silent)", sent.length === 0);
+  ok("blocked sender does not run the command", !calls.includes("pp"));
 
   console.log(`✔ ${checks} checks passed — whitelist mode enforced`);
 }

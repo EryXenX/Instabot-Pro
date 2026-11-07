@@ -74,19 +74,9 @@ function isBannedOrOnlyAdmin(userData, threadData, senderID, threadID, isGroup, 
   // whiteListMode / whiteListModeThread: the config existed but nothing read it,
   // so enabling it did nothing. Enforce it here (this gate runs before onChat,
   // onFirstChat, onReply and onReaction) and in onStart, which had no gate.
+  // Blocked senders get no reply at all — whitelist mode is silent by design.
   const wl = checkWhitelist(config, senderID, threadID);
-  if (!wl.allowed) {
-    // Never reply the notice to the bot's own account: with selfListen on, the
-    // notice is echoed back as an inbound message and the bot would answer its
-    // own answer (a bounded but real loop).
-    const isSelf = String(senderID) === String(global.InstaBot?.userID);
-    if (!isSelf && wl.reason === "user" && config.whiteListMode?.notice === true) {
-      message.reply(getText({ lang: langCode, head: "handlerEvents" }, "onlyWhiteListUser"));
-    } else if (!isSelf && wl.reason === "thread" && config.whiteListModeThread?.notice === true) {
-      message.reply(getText({ lang: langCode, head: "handlerEvents" }, "onlyWhiteListThread"));
-    }
-    return true;
-  }
+  if (!wl.allowed) return true;
 
   if (isGroup === true) {
     if (threadData?.data?.onlyAdminBox === true && !(threadData.adminIDs || []).includes(senderID) && !(threadData.data.ignoreCommanToOnlyAdminBox || []).includes(commandName)) {
@@ -226,19 +216,10 @@ module.exports = function (api) {
 
       // whiteListMode / whiteListModeThread gate. onStart is the main command
       // path and called isBannedOrOnlyAdmin nowhere, so a non-whitelisted sender
-      // could still run every command. Drop them here, before any parsing, so
-      // the bot stays silent for them (the reply is opt-in via *.notice).
+      // could still run every command. Drop them here, before any parsing, and
+      // stay completely silent — whitelist mode sends no notice.
       const wl = checkWhitelist(config, senderID, threadID);
-      if (!wl.allowed) {
-        const isSelf = String(senderID) === String(global.InstaBot?.userID);
-        if (!isSelf && wl.reason === "user" && config.whiteListMode?.notice === true) {
-          return await message.reply(getText({ lang: langCode, head: "handlerEvents" }, "onlyWhiteListUser"));
-        }
-        if (!isSelf && wl.reason === "thread" && config.whiteListModeThread?.notice === true) {
-          return await message.reply(getText({ lang: langCode, head: "handlerEvents" }, "onlyWhiteListThread"));
-        }
-        return;
-      }
+      if (!wl.allowed) return;
 
       // ══════════ NO PREFIX SYSTEM ══════════
       const noPrefixEnable = config.noPrefix?.enable === true;

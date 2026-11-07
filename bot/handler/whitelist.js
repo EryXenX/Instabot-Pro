@@ -18,9 +18,8 @@ function toIdSet(list) {
   );
 }
 
-// Returns { allowed, reason } where reason is "user" | "thread" | null. Callers
-// decide what to do with a denial (the handler drops the event; the notice is
-// opt-in via config.whiteListMode.notice / whiteListModeThread.notice).
+// Returns { allowed, reason } where reason is "user" | "thread" | null. A denied
+// event is dropped silently — whitelist mode never replies a notice.
 function checkWhitelist(config, senderID, threadID) {
   const sender = senderID == null ? "" : String(senderID);
   const thread = threadID == null ? "" : String(threadID);
