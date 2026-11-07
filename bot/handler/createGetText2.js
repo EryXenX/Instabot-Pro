@@ -1,5 +1,5 @@
-// GoatBot-Pro's createGetText2, split out so both handlerCommand.js and
-// handlerEvents.js can use it without a circular require.
+// GoatBot-Pro's createGetText2, split out so handlerEvents.js can use it
+// without a circular require.
 //
 // getLang(key, ...args) resolves text from command.langs[langCode] first, then
 // languages/cmds/<langCode>.js, expands {pn}/{p}/{n} shortcuts, substitutes

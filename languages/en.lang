@@ -68,14 +68,6 @@ handlerEvents.sessionSuspended=This Instagram account appears to be suspended or
 handlerEvents.normalizeError=Normalize error: %1
 handlerEvents.eventError=Event %1: %2
 
-# bot/handler/handlerCommand.js
-handlerCommand.commandNotFound=❌ Unknown command: "%1"\n\n💡 Did you mean: %2?\n\nType %3help to see all available commands.
-handlerCommand.commandNotFoundNoSuggest=❌ Unknown command: "%1"\n\nType %2help to see all available commands.
-handlerCommand.adminOnly=🔒 The bot is currently in admin-only mode.
-handlerCommand.accessDenied=❌ Access Denied!\n\nThis command requires: %1
-handlerCommand.cooldown=⏱ Please wait %1s before using this command again.
-handlerCommand.error=❌ Error executing command: %1
-
 # scripts/cmds/help.js
 help.title=📜 %1 — Command List
 help.footer=Type %1help <command> for details.

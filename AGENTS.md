@@ -326,7 +326,7 @@ package's `reconcile`). The push names a message by numeric `item_id` (and the
 same `mid` when present); the poller names it by `mid`. `Deduper` drops the
 second copy by `mid` or by a `thread+sender+body+timestamp` fingerprint, so the
 hybrid never double-replies. The push also names a thread by its internal
-`thread_id`; `bot/handler/threadIds.js` (and `InstaClient.resolveThreadID()`)
+`thread_id`; `InstaClient.resolveThreadID()` (and `bot/handler/reactionWatcher.js`)
 rewrite it to the inbox id the rest of the bot uses.
 
 `bot/login/login.js` passes `realtime: { enabled: config.realtime, fallback: true }`

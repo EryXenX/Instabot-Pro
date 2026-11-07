@@ -165,7 +165,7 @@ Instabot-Pro/
 ├─ configCommands.json    per-command env (reward amounts, API keys)
 ├─ utils.js               global.utils (GoatBot-Pro helper set)
 ├─ bot/
-│  ├─ handler/            handlerCommand / handlerEvents / handlerAction / listen
+│  ├─ handler/            handlerEvents / handlerAction / listen
 │  ├─ login/              login.js (cookie -> api client, pure HTTP)
 │  ├─ utils/              logger, message, getTime, roles
 │  ├─ compat.js           installs global.GoatBot / db / client / temp for ported scripts
