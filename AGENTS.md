@@ -243,6 +243,27 @@ package's `exports` map exposes only `.` (no `package.json`, no `src/*`
 subpaths). The wrapper lives outside `scripts/cmds/*` (which stay frozen) and is
 installed from `InstaBot.js` before commands load.
 
+## Config is a mutable global, not a constant
+
+`global.GoatBot.config` (`=== global.InstaBot.config`) is **reassigned** by
+`/loadconfig` (`scripts/cmds/loadconfig.js`: `global.GoatBot.config =
+fs.readJsonSync(dirConfig)`) and by `/setting`-style disk writes. So:
+
+- Never capture it at module scope (`const cfg = global.GoatBot.config;` at the
+  top of a command). After a reload the command mutates the **dead** object: it
+  replies success and writes `config.json`, but `handlerEvents` — which resolves
+  `global.InstaBot.config` **per event** — keeps reading the new object and the
+  change has no effect until a restart. Resolve the config **inside** the
+  handler (`scripts/cmds/whitelist.js` `liveConfig()`).
+- A command that edits `config.json` directly (`scripts/cmds/setting.js`
+  `saveConfig()`) must also sync the in-memory object in place, or the gate
+  never sees the toggle.
+- `bot/compat.js` `buildGoatGlobals` builds the *first* config as a merge of
+  `defaultGoatConfig()` and `config.json` (`{ ...defaults, ...registry.config }`),
+  so an unknown key added to `config.json` (e.g. `whiteListMode`) survives on
+  disk but only reaches the running config after a `/loadconfig` (or restart)
+  — `bot/loader.js` `initGlobal` sets `registry.config` to the raw `config.json`.
+
 ## Secrets / git hygiene (IMPORTANT)
 
 - `account.txt` is **tracked** but must hold only the placeholder. The working
