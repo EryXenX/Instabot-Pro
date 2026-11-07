@@ -8,6 +8,7 @@ const httpRetry = require("./bot/httpRetry");
 const graphBridge = require("./bot/graphBridge");
 const mediaBridge = require("./bot/mediaBridge");
 const ttyCompat = require("./bot/ttyCompat");
+const realtimeBridgeCompat = require("./bot/realtimeBridgeCompat");
 
 // Install before commands require axios so their client shares the interceptor.
 httpRetry.install();
@@ -56,6 +57,11 @@ async function start() {
   loadEvents(__dirname);
 
   logger.info("BOT", getText("InstaBot", "botIDLogged", global.InstaBot.userID || "unknown"));
+
+  // The push delivers a swipe-reply as a `replied_to_message` object; an
+  // installed package older than 2.2.1 drops that linkage, which stalls every
+  // reply until the next poll. Patch the bridge before listen() runs.
+  realtimeBridgeCompat.install();
 
   startListening(api);
   startReactionWatcher(api);
