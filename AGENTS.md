@@ -380,3 +380,29 @@ throttles the session) used to escape as a process-level `unhandledRejection`,
 so the reply vanished and only a stack trace was logged. Each sub-handler is now
 wrapped in a `dispatch(name, fn)` that attaches `.catch()` and logs under
 `HANDLER`. `tools/test/handlerDispatch.test.js` guards it (fails on the old code).
+
+## A gate inside `.then(handler)` only covers handler-style commands
+
+`handlerEvents` used to run `isBannedOrOnlyAdmin` (and therefore the whitelist
+gate) **inside** the promise callback, only when the command returned a handler
+function:
+
+```js
+command.onChat(...).then(async (handler) => {
+  if (typeof handler === "function") {
+    if (isBannedOrOnlyAdmin(...)) return;   // skipped for direct commands
+    await handler();
+  }
+});
+```
+
+A command that does its work directly inside `onChat` and returns a value —
+`baby.js` (the `baby`/`bby`/`Bot` AI chat) is exactly this — never reached the
+check, so a non-whitelisted sender could still trigger it while `onStart`
+commands (`/help`, `/pp`) were correctly blocked. The gate now runs **before**
+the command is called, in `onChat`/`onFirstChat`, matching `onReply`/
+`onReaction`; `onAnyEvent` (which had no gate at all) uses the thread whitelist.
+`onFirstChat` gates before marking the thread "first chatted" so a blocked
+sender cannot burn the one-shot. When adding a new hook, gate up front — never
+inside the `.then(handler)` callback. `tools/test/whitelist.test.js` guards it
+with an onChat command that answers directly (fails on the old code).
