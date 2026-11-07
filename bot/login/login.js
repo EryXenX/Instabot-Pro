@@ -116,6 +116,16 @@ async function loginBot() {
 
   const { native, info } = result;
   const api = new InstaClient(native, { sessionGuardFile: APPSTATE_FILE });
+
+  // Realtime push wiring the reaction watcher rides on. The inbox listener owns
+  // the session's single shared MQTT connection; these hooks let the watcher
+  // attach its own "direct" listener to that same connection instead of dialing
+  // a second one (a second connection on the same device id steals the Direct
+  // stream and leaves the bot deaf). Without them the watcher's fast path never
+  // attaches and every reaction falls back to the 5s poll.
+  const realtimeEnabled = global.InstaBot.config.realtime === true;
+  global.InstaBot.realtimeOptions = () => ({ enabled: realtimeEnabled });
+  global.InstaBot.realtimeClient = () => (api.api && api.api._realtime) || null;
   // A throttled read resolves null and frozen code destructures it into a crash;
   // retry transient nulls so commands answer instead of erroring.
   require("../readGuards").install(api);
