@@ -325,19 +325,38 @@ global.GoatBot.onReply.set(sent.messageID, {
 
 ## ◈ Latency
 
-Instagram DMs have no push/webhook channel, so the bot **polls the inbox** for
-new messages. Reply latency is bounded by the poll interval:
+Replies ride the realtime **MQTT push** (the Direct message-sync stream), so a
+message is normally detected in ~50 ms and answered well under 2 s. Polling is
+kept only as a safety net: the listener holds one shared MQTT connection and runs
+a slow safety poll (default 8 s) so a push that connects and then goes quiet
+cannot leave the bot deaf.
 
 ```jsonc
 // config.json
-"pollInterval": 15000
+"realtime": true,            // push primary; falls back to polling if the broker is unreachable
+"realtimeSafetyPollMs": 8000, // safety poll that covers a silent push
+"pollInterval": 15000         // interval used only when realtime is off
 ```
 
-`15000` is the library's documented safe floor. Polling faster (the old `2000`)
-does not make replies meaningfully snappier on a datacenter IP like Render's — it
-just trips Instagram's 429 throttle, which stalls the inbox and makes the bot look
-deaf. Raise it further if 429s persist, or put a residential proxy in front and
-lower it.
+`pollInterval` `15000` is the library's documented safe floor. Do **not** poll
+faster to chase latency: polling every 2–3 s on a datacenter IP like Render's
+trips Instagram's 429 throttle, which stalls the inbox and makes the bot look
+deaf. The push is the fast path; the poll is the fallback. If 429s persist, raise
+`realtimeSafetyPollMs` or put a residential proxy in front.
+
+### Answering commands sent from the bot's own account
+
+`optionsFca.selfListen` (default `false`) makes the bot also process commands
+sent from its own account — handy for testing without a second account:
+
+```jsonc
+// config.json
+"optionsFca": { "selfListen": true }
+```
+
+It is **off by default** so the bot never reacts to its own messages. Commands
+only fire on `prefix + commandName`, so even with `selfListen` on the bot's reply
+text cannot re-trigger a command.
 
 ---
 
