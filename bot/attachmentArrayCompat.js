@@ -75,6 +75,20 @@ function install(api) {
     return false;
   }
 
+  wrapSendMessage(api);
+  api.__attachmentArrayPatched = true;
+  log(
+    version
+      ? `attachment-array fallback installed (installed package ${version} predates 2.2.5: array sends would throw "Unsupported attachment")`
+      : "attachment-array fallback installed (installed package predates 2.2.5)"
+  );
+  return true;
+}
+
+// Wraps api.sendMessage so a form carrying more than one attachment is sent one
+// message per entry. Exposed so the fallback can be exercised without depending
+// on the installed package's version.
+function wrapSendMessage(api) {
   const original = api.sendMessage.bind(api);
 
   api.sendMessage = async function (form, threadID, callback, replyToMessage) {
@@ -93,13 +107,8 @@ function install(api) {
     return info;
   };
 
-  api.__attachmentArrayPatched = true;
-  log(
-    version
-      ? `attachment-array fallback installed (installed package ${version} predates 2.2.5: array sends would throw "Unsupported attachment")`
-      : "attachment-array fallback installed (installed package predates 2.2.5)"
-  );
-  return true;
+  return api;
 }
 
-module.exports = { install, attachmentList };
+module.exports = { install, wrapSendMessage, attachmentList, atLeast, installedVersion };
+
