@@ -48,7 +48,9 @@ Run with `NODE_PATH=/workspace/project/EagleBot-run/node_modules`.
 Permanent regression tests live in `tools/test/` and run via `npm test`:
 `listenKeepAlive.test.js` (poller keeps the process alive) and
 `reactionWatcher.test.js` (offline: `onReaction` dispatch, author guard,
-one-shot cleanup, coexistence with `reactUnsend`).
+one-shot cleanup, coexistence with `reactUnsend`). `attachmentArrayCompat.test.js`
+covers the array-attachment send fallback (`attachment: [..]` -> one media per
+entry, body on the first, callback on the last).
 
 `/tmp` is wiped when the container/session recycles, and the bot process does
 NOT survive it either — recreate a harness if missing, and restart the bot
