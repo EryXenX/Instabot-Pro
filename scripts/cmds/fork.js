@@ -1,4 +1,4 @@
-Cmd install fork.js exports.config = {
+exports.config = {
   name: "fork",
   version: "1.0.1",
   author: "EryXenX",
