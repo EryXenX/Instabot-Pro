@@ -130,9 +130,6 @@ async function loginBot() {
   const realtimeEnabled = global.InstaBot.config.realtime === true;
   global.InstaBot.realtimeOptions = () => ({ enabled: realtimeEnabled });
   global.InstaBot.realtimeClient = () => (api.api && api.api._realtime) || null;
-  // A throttled read resolves null and frozen code destructures it into a crash;
-  // retry transient nulls so commands answer instead of erroring.
-  require("../readGuards").install(api);
   const pacing = require("../pacing").applySendPacing(global.InstaBot.config);
   logger.info("SESSION", getText("login", "sendPacing", pacing.globalMinGapMs, pacing.perThreadMinGapMs, pacing.jitterMs));
   api.username = info.username || null;

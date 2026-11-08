@@ -179,11 +179,12 @@ Instabot-Pro/
 ├─ scripts/
 │  ├─ cmds/               commands (module.exports.config + onStart)
 │  └─ events/             passive event scripts
-└─ tools/                 packageBot.js, packageInstaChat.js
+└─ tools/                 packageBot.js
 ```
 
 `@eryxenx/insta-chat` is installed from npm — its source is not bundled into the
-bot archive.
+bot archive. The chat API fixes live in the package, not the bot: the bot ships
+no chat API shims, and requires at least `@eryxenx/insta-chat` 2.2.6.
 
 ---
 

@@ -6,21 +6,13 @@ const { initGlobal, loadCommands, loadEvents } = require("./bot/loader");
 const { logger, getText } = require("./bot/utils");
 const httpRetry = require("./bot/httpRetry");
 const graphBridge = require("./bot/graphBridge");
-const mediaBridge = require("./bot/mediaBridge");
 const ttyCompat = require("./bot/ttyCompat");
-const realtimeBridgeCompat = require("./bot/realtimeBridgeCompat");
-const linkMessageCompat = require("./bot/linkMessageCompat");
-const replyMediaCompat = require("./bot/replyMediaCompat");
-const attachmentArrayCompat = require("./bot/attachmentArrayCompat");
 
 // Install before commands require axios so their client shares the interceptor.
 httpRetry.install();
 // Rewrites frozen Facebook Graph picture URLs (pp.js, ...) to Instagram CDN
 // avatars on the shared axios instance.
 graphBridge.install();
-// Commits a captioned media send's text and attachment together so the caption
-// and the image land as one message (IG has no caption field on media sends).
-mediaBridge.install();
 // The bot runs with stdio redirected, where process.stderr.clearLine is absent;
 // cmd.js's install spinner calls it and throws. Provide no-op fallbacks.
 ttyCompat.install();
@@ -60,25 +52,6 @@ async function start() {
   loadEvents(__dirname);
 
   logger.info("BOT", getText("InstaBot", "botIDLogged", global.InstaBot.userID || "unknown"));
-
-  // The push delivers a swipe-reply as a `replied_to_message` object; an
-  // installed package older than 2.2.1 drops that linkage, which stalls every
-  // reply until the next poll. Patch the bridge before listen() runs.
-  realtimeBridgeCompat.install();
-  // A URL-bearing DM arrives as a link preview (xma_link / MESSAGE_INLINE_SHARE);
-  // an installed package older than 2.2.3 dropped it, so URL commands got no
-  // reply. No-op once 2.2.3+ is installed.
-  linkMessageCompat.install();
-  // A swipe-reply to an image arrives on the push with only the target's ids and
-  // text, no media node; an installed package older than 2.2.4 leaves
-  // messageReply.attachments empty, so /imgbb and /catbox answered "Please reply
-  // to an image". No-op once 2.2.4+ is installed.
-  await replyMediaCompat.install();
-  // A multi-image send (pinterest, backupdata, appstore, poli, ...) passes
-  // `attachment: [..]`; an installed package older than 2.2.5 read only the
-  // first entry and threw "Unsupported attachment" on the array. No-op once
-  // 2.2.5+ is installed.
-  attachmentArrayCompat.install(api);
 
   startListening(api);
   startReactionWatcher(api);
