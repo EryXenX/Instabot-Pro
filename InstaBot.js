@@ -10,6 +10,7 @@ const mediaBridge = require("./bot/mediaBridge");
 const ttyCompat = require("./bot/ttyCompat");
 const realtimeBridgeCompat = require("./bot/realtimeBridgeCompat");
 const linkMessageCompat = require("./bot/linkMessageCompat");
+const replyMediaCompat = require("./bot/replyMediaCompat");
 
 // Install before commands require axios so their client shares the interceptor.
 httpRetry.install();
@@ -67,6 +68,11 @@ async function start() {
   // an installed package older than 2.2.3 dropped it, so URL commands got no
   // reply. No-op once 2.2.3+ is installed.
   linkMessageCompat.install();
+  // A swipe-reply to an image arrives on the push with only the target's ids and
+  // text, no media node; an installed package older than 2.2.4 leaves
+  // messageReply.attachments empty, so /imgbb and /catbox answered "Please reply
+  // to an image". No-op once 2.2.4+ is installed.
+  await replyMediaCompat.install();
 
   startListening(api);
   startReactionWatcher(api);

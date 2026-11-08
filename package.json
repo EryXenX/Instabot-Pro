@@ -15,7 +15,7 @@
     "node": ">=18"
   },
   "dependencies": {
-    "@eryxenx/insta-chat": "^2.2.3",
+    "@eryxenx/insta-chat": "^2.2.4",
     "@napi-rs/canvas": "^0.1.80",
     "axios": "^1.13.1",
     "canvas": "^3.2.3",
