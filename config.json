@@ -97,10 +97,8 @@
   "realtime": true,
   "notesRealtime": "true (default) = subscribe to Instagram's MQTT message-sync push so a DM arrives in ~1s. The push rides the session's single shared MQTT client, so the listener and the reaction watcher no longer steal the stream from each other. A safety poll (realtimeSafetyPollMs) runs underneath as a fallback, so a push that connects and then goes quiet does not leave the bot deaf. Set false to poll only.",
   "sendPacing": {
-    "globalMinGapMs": 500,
-    "perThreadMinGapMs": 700,
-    "jitterMs": 300,
-    "notes": "Outbound-send pacing (antiSuspension). The package's conservative defaults (global 1500, per-thread 2500, jitter 1500) add ~2.5-3.7s to every reply; these lower values keep a human-like rhythm at under 1s. Raise them toward the defaults if Instagram starts throttling sends (429)."
+    "enabled": false,
+    "notes": "Outbound-send pacing (antiSuspension). Disabled by default: the package's pacer is a single global queue and, once its warmup hourly cap is passed, adds overCapGapMs (20s) to every send, so on a busy account replies queue up and drift to minutes. With enabled:false the bot replies immediately. Set enabled:true (and optional gaps/caps) if Instagram starts throttling sends (429)."
   },
   "proxy": "",
   "notesProxy": "Route all Instagram HTTP traffic through a proxy, e.g. \"http://user:pass@host:port\" or {\"https\":\"http://...\",\"http\":\"http://...\"}. Strongly recommended on a VPS: a data-centre IP is the main reason Instagram logs the session out or suspends it. Use a residential or mobile proxy.",

@@ -171,7 +171,8 @@ Instabot-Pro/
 │  ├─ compat.js           installs global.GoatBot / db / client / temp for ported scripts
 │  ├─ loader.js           loads scripts/cmds and scripts/events
 │  ├─ graphBridge.js      rewrites Facebook picture URLs to Instagram avatars
-│  └─ httpRetry.js        axios retry interceptor
+│  ├─ httpRetry.js        axios retry interceptor
+│  └─ pacing.js           outbound send-pacing profile passed to the package
 ├─ database/              JSON-backed usersData / threadsData / globalData / dashBoardData
 ├─ func/                  colors.js, prism.js
 ├─ logger/                log.js, loading.js, logColor.js
@@ -343,6 +344,24 @@ faster to chase latency: polling every 2–3 s on a datacenter IP like Render's
 trips Instagram's 429 throttle, which stalls the inbox and makes the bot look
 deaf. The push is the fast path; the poll is the fallback. If 429s persist, raise
 `realtimeSafetyPollMs` or put a residential proxy in front.
+
+### Send pacing
+
+The library paces every outbound send (its anti-suspension pacer) and that pacer
+is a single global queue: once its warmup hourly cap is passed it adds a fixed
+gap (`overCapGapMs`, 20 s by default) to *every* send, so on a busy account
+replies queue up and drift to minutes. The bot therefore ships pacing **off** —
+replies go out immediately:
+
+```jsonc
+// config.json
+"sendPacing": { "enabled": false }
+```
+
+Turn it back on (`"enabled": true`) and optionally set `globalMinGapMs`,
+`perThreadMinGapMs`, `jitterMs` or the caps if Instagram starts throttling sends
+(429). The setting is passed to the package as its documented `sendPacing`
+option; the throttle itself lives in the package, not the bot.
 
 ### Answering commands sent from the bot's own account
 

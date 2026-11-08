@@ -80,7 +80,12 @@ async function connect(cookieData, sessionParams) {
       // FCA selfListen: true = also process commands sent from the bot's own
       // account (useful for testing). Off by default; the bot otherwise drops
       // its own outbound messages so a command cannot reply to itself forever.
-      selfListen: global.InstaBot.config.optionsFca?.selfListen === true
+      selfListen: global.InstaBot.config.optionsFca?.selfListen === true,
+      // Outbound send pacing. The bot's no-delay profile (config.sendPacing) is
+      // handed to the package as its documented option — the throttle lives in
+      // the package, not patched here. Applied on the native client so it is in
+      // force before the first send.
+      sendPacing: require("../pacing").resolveSendPacing(global.InstaBot.config)
     });
     try {
       const info = await native.init();
@@ -130,8 +135,11 @@ async function loginBot() {
   const realtimeEnabled = global.InstaBot.config.realtime === true;
   global.InstaBot.realtimeOptions = () => ({ enabled: realtimeEnabled });
   global.InstaBot.realtimeClient = () => (api.api && api.api._realtime) || null;
-  const pacing = require("../pacing").applySendPacing(global.InstaBot.config);
-  logger.info("SESSION", getText("login", "sendPacing", pacing.globalMinGapMs, pacing.perThreadMinGapMs, pacing.jitterMs));
+  const pacing = require("../pacing").resolveSendPacing(global.InstaBot.config);
+  logger.info(
+    "SESSION",
+    getText("login", "sendPacing", pacing.enabled ? "on" : "off", pacing.globalMinGapMs, pacing.perThreadMinGapMs, pacing.jitterMs)
+  );
   api.username = info.username || null;
   logger.success("LOGIN INSTAGRAM", getText("login", "loginSuccess", info.username || info.userID));
   return api;
