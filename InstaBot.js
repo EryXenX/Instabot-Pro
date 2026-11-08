@@ -11,6 +11,7 @@ const ttyCompat = require("./bot/ttyCompat");
 const realtimeBridgeCompat = require("./bot/realtimeBridgeCompat");
 const linkMessageCompat = require("./bot/linkMessageCompat");
 const replyMediaCompat = require("./bot/replyMediaCompat");
+const attachmentArrayCompat = require("./bot/attachmentArrayCompat");
 
 // Install before commands require axios so their client shares the interceptor.
 httpRetry.install();
@@ -73,6 +74,11 @@ async function start() {
   // messageReply.attachments empty, so /imgbb and /catbox answered "Please reply
   // to an image". No-op once 2.2.4+ is installed.
   await replyMediaCompat.install();
+  // A multi-image send (pinterest, backupdata, appstore, poli, ...) passes
+  // `attachment: [..]`; an installed package older than 2.2.5 read only the
+  // first entry and threw "Unsupported attachment" on the array. No-op once
+  // 2.2.5+ is installed.
+  attachmentArrayCompat.install(api);
 
   startListening(api);
   startReactionWatcher(api);
