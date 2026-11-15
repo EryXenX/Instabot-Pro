@@ -108,8 +108,9 @@ npm start
 
 That's it — the bot logs in and starts listening. `index.js` supervises
 `InstaBot.js` (restarts it on any abnormal exit — a crash, an OOM kill, or an
-exit code `1` after a fatal session error — and gives up only if it restarts
-more than three times in ten minutes) and serves the uptime page on `PORT`
+exit code `1` after a fatal session error — and, if it restarts more than three
+times in ten minutes, cools down for ten minutes and then tries again) and
+serves the uptime page on `PORT`
 (default `3000`).
 
 **Docker** — a `Dockerfile` is included (plain `node:20`, no browser):

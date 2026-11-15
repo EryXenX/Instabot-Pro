@@ -1,3 +1,12 @@
+// Prefer IPv4 for every outbound connection. The realtime broker resolves to
+// both an A and an AAAA record, and the log shows a run dying on
+// "connect ETIMEDOUT <v4>; connect ENETUNREACH <v6>" — Node tries the AAAA
+// (IPv6) address first on a host with no working IPv6 route, so the attempt
+// fails with ENETUNREACH and the socket never comes up. Ordering IPv4 first
+// avoids that dead path. Must run before any socket is created, so it is the
+// very first statement in the process.
+require("dns").setDefaultResultOrder("ipv4first");
+
 const loginBot = require("./bot/login/login");
 const loadData = require("./bot/login/loadData");
 const startListening = require("./bot/handler/listen");

@@ -37,6 +37,13 @@ const BACKOFF_MAX_MS = 10 * 60 * 1000;
 // this watchdog re-arms it (see onListenerError).
 const REARM_START_MS = 3000;
 const REARM_MAX_MS = 60 * 1000;
+// If the realtime push stays dead this long, the re-arm loop is not winning
+// (e.g. the host cannot reach the broker at all: the log shows a run stuck on
+// "connect ETIMEDOUT <v4>; connect ENETUNREACH <v6>" and never recovering).
+// The process then stays alive but deaf, so exit(2) and let the supervisor
+// rebuild the whole process — a fresh DNS resolution and socket — instead of
+// waiting forever on a dead one.
+const REALTIME_DEAD_EXIT_MS = 3 * 60 * 1000;
 
 // Instagram answers a dead/suspended session by redirecting the inbox poll to
 // the login page, which surfaces as an axios "Maximum number of redirects
@@ -193,11 +200,15 @@ function startListening(api) {
   // and then exits cleanly a second later, which the supervisor reads as a
   // normal shutdown and never restarts.
   const keepAlive = setInterval(() => {}, 60000);
+  // The realtime liveness watchdog (armed at the end of this function). Cleared
+  // on shutdown so it cannot fire during teardown.
+  let realtimeWatchdog = null;
   const shutdown = (code) => {
     stopped = true;
     if (typeof stopCurrent === "function") stopCurrent();
     if (typeof stopSafety === "function") stopSafety();
     clearInterval(keepAlive);
+    if (realtimeWatchdog) clearInterval(realtimeWatchdog);
     process.exit(code);
   };
 
@@ -232,12 +243,16 @@ function startListening(api) {
   };
 
   let rearmBackoff = REARM_START_MS;
+  // When the realtime push was last seen alive (or last observed dead). The
+  // watchdog below uses it to give up on the in-process re-arm loop and exit.
+  let realtimeDownSince = 0;
   const onListenerError = (err) => {
     if (stopped) return;
     logger.error("LISTEN", getText("handlerEvents", "listenError", err && (err.message || err)));
     // Only the realtime path needs this: in polling mode the package keeps its
     // own poll timer alive across transient errors.
     if (!realtimeConfigured() || realtimeAlive()) return;
+    if (!realtimeDownSince) realtimeDownSince = Date.now();
     if (typeof stopCurrent === "function") stopCurrent();
     stopCurrent = null;
     const wait = rearmBackoff;
@@ -393,6 +408,33 @@ function startListening(api) {
 
   armListener();
   armSafetyPoll();
+
+  // Realtime liveness watchdog. `onListenerError` re-arms the listener when the
+  // push drops, but if the broker is unreachable for good (the run that went
+  // silent was stuck on ETIMEDOUT / ENETUNREACH) the re-arm never succeeds and
+  // the process stays up and deaf. If the push has been down for
+  // REALTIME_DEAD_EXIT_MS, exit(2): the supervisor restarts the process, which
+  // re-resolves DNS and dials a fresh socket — the only thing that clears a
+  // wedged network path. Polling keeps the bot answering until then.
+  if (realtimeConfigured()) {
+    const startedRealtimeAt = Date.now();
+    realtimeWatchdog = setInterval(() => {
+      if (stopped) return;
+      if (realtimeAlive()) {
+        realtimeDownSince = 0;
+        return;
+      }
+      // Not alive. Start the clock from now if we have not seen it alive since
+      // startup either (a broker that never came up at all still counts).
+      const downSince = realtimeDownSince || startedRealtimeAt;
+      const downMs = Date.now() - downSince;
+      if (downMs >= REALTIME_DEAD_EXIT_MS) {
+        logger.error("LISTEN", getText("handlerEvents", "realtimeDeadRestart", Math.round(downMs / 1000)));
+        shutdown(2);
+      }
+    }, 30000);
+    if (realtimeWatchdog.unref) realtimeWatchdog.unref();
+  }
 }
 
 module.exports = startListening;

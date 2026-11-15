@@ -9,6 +9,13 @@ const restartLog = [];
 const RESTART_WINDOW_MS = 10 * 60 * 1000;
 const RESTART_LIMIT = 3;
 const RESTART_DELAY_MS = 5000;
+// After too many restarts in the window, cool down instead of stopping for
+// good. A permanent stop meant one bad spell (a network outage the bot keeps
+// crashing into) left it down until a manual restart, even after the network
+// recovered. A cooldown keeps the bot self-healing: it waits out the storm and
+// then tries again.
+const RESTART_COOLDOWN_MS = 10 * 60 * 1000;
+let cooldownTimer = null;
 
 function startProject() {
   botState.status = "starting";
@@ -45,8 +52,15 @@ function startProject() {
     restartLog.push(now);
     while (restartLog.length && now - restartLog[0] > RESTART_WINDOW_MS) restartLog.shift();
     if (restartLog.length > RESTART_LIMIT) {
-      console.log("Too many restarts in a short time; not restarting InstaBot.");
-      botState.status = "stopped";
+      // Too many restarts in the window: cool down and try again rather than
+      // stopping for good. The log is cleared so the next burst gets a fresh
+      // budget; the bot keeps retrying so it heals itself once the cause (e.g.
+      // a network outage) clears.
+      console.log(`Too many restarts in a short time; cooling down for ${RESTART_COOLDOWN_MS / 60000} minutes.`);
+      botState.status = "cooldown";
+      restartLog.length = 0;
+      if (cooldownTimer) clearTimeout(cooldownTimer);
+      cooldownTimer = setTimeout(startProject, RESTART_COOLDOWN_MS);
       return;
     }
     console.log(`InstaBot exited (code ${code}); restarting...`);
