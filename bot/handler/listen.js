@@ -179,6 +179,9 @@ function startListening(api) {
   let stopCurrent = null; // the package listen()'s cancel function
   let stopSafety = null; // the safety poller's cancel function
   let backoff = BACKOFF_START_MS;
+  // Backoff for a re-arm after an *ambiguous* session error (see onError): the
+  // session still looks alive, so the listener retries instead of exiting.
+  let sessionBackoff = BACKOFF_START_MS;
   let lastRateLimitLog = 0;
   let rateLimitStreak = 0;
   let safetyRateLimited = 0;
@@ -299,18 +302,35 @@ function startListening(api) {
     if (stopped) return;
     if (isRateLimited(err)) return onRateLimited();
     if (isSessionInvalid(err)) {
-      let langKey = FATAL_LANG_KEYS[err.code] || "sessionInvalid";
-      if (!FATAL_LANG_KEYS[err.code]) {
-        try {
-          const diagnoseSession = require("../login/diagnose");
-          const result = await diagnoseSession();
-          langKey = result.langKey || langKey;
-        } catch (_) {}
+      // A challenge or suspension is definite: the cookie cannot recover on its
+      // own, so stop with the fatal code.
+      if (err.code === "IG_CHALLENGE" || err.code === "IG_SUSPENDED") {
+        logger.error("LISTEN", getText("handlerEvents", FATAL_LANG_KEYS[err.code]));
+        return shutdown(1);
       }
-      logger.error("LISTEN", getText("handlerEvents", langKey));
-      // Close with the fatal code so the supervisor reports the bot as stopped
-      // instead of leaving a live process that polls a dead session.
-      shutdown(1);
+      // IG_SESSION_INVALID is ambiguous. The package's classifier also maps a
+      // redirect / "maximum number of redirects" and some network hiccups onto
+      // it, so a transient blip (the run that went silent showed ETIMEDOUT /
+      // ENETUNREACH just before it stopped) can look like a dead session. Probe
+      // before believing it: a still-valid session re-arms instead of exiting,
+      // which is what let a network blip take the bot down for good.
+      let result = null;
+      try {
+        result = await require("../login/diagnose")();
+      } catch (_) {}
+      const status = result && result.status;
+      if (status === "expired" || status === "suspended" || status === "challenge") {
+        logger.error("LISTEN", getText("handlerEvents", (result && result.langKey) || "sessionInvalid"));
+        return shutdown(1);
+      }
+      // ok / rate_limited / transient / unknown: the session still looks alive,
+      // so keep the process up and re-arm the listener with backoff.
+      logger.warn("LISTEN", getText("handlerEvents", "sessionRetry", (result && result.langKey) || "unknown", Math.round(sessionBackoff / 1000)));
+      if (typeof stopCurrent === "function") stopCurrent();
+      stopCurrent = null;
+      const wait = sessionBackoff;
+      sessionBackoff = Math.min(sessionBackoff * 2, BACKOFF_MAX_MS);
+      setTimeout(armListener, wait);
       return;
     }
     onListenerError(err);
@@ -330,6 +350,10 @@ function startListening(api) {
           }
         }
         rearmBackoff = REARM_START_MS;
+        if (sessionBackoff !== BACKOFF_START_MS) {
+          sessionBackoff = BACKOFF_START_MS;
+          logger.success("LISTEN", getText("handlerEvents", "recvResumed"));
+        }
         void onEvent(raw);
       },
       interval

@@ -61,6 +61,7 @@ handlerEvents.rateLimited=Instagram is rate-limiting the inbox poll (HTTP 429). 
 handlerEvents.recvResumed=Inbox polling resumed - Instagram's throttle has lifted.
 handlerEvents.pollIntervalRaised=Configured pollInterval %1ms is too aggressive (Instagram rate-limits) - raised to %2ms.
 handlerEvents.sessionInvalid=Instagram session is no longer valid (account suspended or cookie expired). Stopped polling - update account.txt with a fresh cookie.
+handlerEvents.sessionRetry=Instagram reported an ambiguous session error (%1) but the session still looks valid - re-arming the listener in %2s instead of stopping.
 handlerEvents.sessionRateLimited=Instagram is rate-limiting this account (HTTP 429). Stopped polling - wait a few minutes, your cookie is still valid, then restart.
 handlerEvents.sessionChallenge=Instagram requires a security check (challenge/checkpoint). Stopped polling - complete the verification in the Instagram app, then restart.
 handlerEvents.sessionExpired=Instagram session cookie expired or logged out. Stopped polling - paste a fresh cookie in account.txt and restart.
