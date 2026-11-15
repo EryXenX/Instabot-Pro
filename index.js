@@ -30,22 +30,28 @@ function startProject() {
   child.on("close", (code) => {
     if (currentChild === child) currentChild = null;
     botState.code = code;
-    if (code == 2) {
-      const now = Date.now();
-      restartLog.push(now);
-      while (restartLog.length && now - restartLog[0] > RESTART_WINDOW_MS) restartLog.shift();
-      if (restartLog.length > RESTART_LIMIT) {
-        console.log("Too many restarts in a short time; not restarting InstaBot.");
-        botState.status = "stopped";
-        return;
-      }
-      console.log("Restarting InstaBot...");
-      botState.status = "restarting";
-      setTimeout(startProject, RESTART_DELAY_MS);
-    } else {
-      // code 1 = fatal (e.g. session invalid / suspended); 0 = clean exit.
+    // Restart on any abnormal exit, not just code 2. The bot exits 1 when it
+    // believes the session is dead, and an external kill (host OOM, container
+    // recycle) surfaces as a signal (code null). Restarting only on 2 meant one
+    // transient failure — a network blip misread as a dead session, or an OOM
+    // kill — left the bot down until it was manually restarted, even though the
+    // cookie was still valid. The window guard below still stops a crash loop,
+    // and code 0 stays a deliberate clean stop.
+    if (code === 0) {
       botState.status = "stopped";
+      return;
     }
+    const now = Date.now();
+    restartLog.push(now);
+    while (restartLog.length && now - restartLog[0] > RESTART_WINDOW_MS) restartLog.shift();
+    if (restartLog.length > RESTART_LIMIT) {
+      console.log("Too many restarts in a short time; not restarting InstaBot.");
+      botState.status = "stopped";
+      return;
+    }
+    console.log(`InstaBot exited (code ${code}); restarting...`);
+    botState.status = "restarting";
+    setTimeout(startProject, RESTART_DELAY_MS);
   });
 }
 
