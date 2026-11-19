@@ -1,0 +1,13 @@
+node_modules/
+device.json
+appstate.json
+appstate.json.bak
+*.log
+.DS_Store
+
+# Runtime state generated on first run (JSON backend, autoseen cache, and the
+# emoji font that up.js downloads if missing) — not source.
+/database/data/
+/scripts/cmds/cache/
+/scripts/cmds/tmp/
+/scripts/cmds/fonts/NotoColorEmoji.ttf
